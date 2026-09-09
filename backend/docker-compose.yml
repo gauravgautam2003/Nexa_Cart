@@ -1,0 +1,205 @@
+services:
+
+  # =========================
+  # DATABASE
+  # =========================
+
+  mongodb:
+    image: mongo:8
+    container_name: nexacart-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+
+  # =========================
+  # CACHE
+  # =========================
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexacart-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+
+  # =========================
+  # API GATEWAY
+  # =========================
+
+  api-gateway:
+    build:
+      context: ./gateway
+    container_name: nexacart-api-gateway
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./gateway/.env
+    depends_on:
+      - auth
+      - user
+      - product
+      - cart
+      - order
+      - payment
+      - inventory
+      - notification
+
+
+  # =========================
+  # AUTH SERVICE
+  # =========================
+
+  auth-service:
+    build:
+      context: ./services/auth
+    container_name: nexacart-auth
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./services/auth/.env
+    depends_on:
+      - mongodb
+
+
+  # =========================
+  # USER SERVICE
+  # =========================
+
+  user-service:
+    build:
+      context: ./services/user
+    container_name: nexacart-user
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    env_file:
+      - ./services/user/.env
+    depends_on:
+      - mongodb
+
+
+  # =========================
+  # PRODUCT SERVICE
+  # =========================
+
+  product-service:
+    build:
+      context: ./services/product
+    container_name: nexacart-product
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    env_file:
+      - ./services/product/.env
+    depends_on:
+      - mongodb
+
+
+  # =========================
+  # CART SERVICE
+  # =========================
+
+  cart-service:
+    build:
+      context: ./services/cart
+    container_name: nexacart-cart
+    restart: unless-stopped
+    ports:
+      - "5004:5004"
+    env_file:
+      - ./services/cart/.env
+    depends_on:
+      - mongodb
+      - redis
+      - user
+      - product
+
+
+  # =========================
+  # ORDER SERVICE
+  # =========================
+
+  order-service:
+    build:
+      context: ./services/order
+    container_name: nexacart-order
+    restart: unless-stopped
+    ports:
+      - "5005:5005"
+    env_file:
+      - ./services/order/.env
+    depends_on:
+      - mongodb
+      - cart
+      - inventory
+      - payment
+
+
+  # =========================
+  # PAYMENT SERVICE
+  # =========================
+
+  payment-service:
+    build:
+      context: ./services/payment
+    container_name: nexacart-payment
+    restart: unless-stopped
+    ports:
+      - "5006:5006"
+    env_file:
+      - ./services/payment/.env
+    depends_on:
+      - mongodb
+
+
+  # =========================
+  # INVENTORY SERVICE
+  # =========================
+
+  inventory-service:
+    build:
+      context: ./services/inventory
+    container_name: nexacart-inventory
+    restart: unless-stopped
+    ports:
+      - "5007:5007"
+    env_file:
+      - ./services/inventory/.env
+    depends_on:
+      - mongodb
+      - product
+
+
+  # =========================
+  # NOTIFICATION SERVICE
+  # =========================
+
+  notification-service:
+    build:
+      context: ./services/notification
+    container_name: nexacart-notification
+    restart: unless-stopped
+    ports:
+      - "5008:5008"
+    env_file:
+      - ./services/notification/.env
+    depends_on:
+      - user
+      - order
+
+
+# =========================
+# VOLUMES
+# =========================
+
+volumes:
+  mongodb_data:
+  redis_data:

@@ -1,0 +1,10 @@
+'use client'
+
+import { useState, type FormEvent } from 'react'
+import Button from '../../../components/ui/Button'
+import Input from '../../../components/ui/Input'
+import Checkbox from '../../../components/ui/Checkbox'
+import type { Address } from '../user.types'
+
+export function AddressForm({ address, onSubmit }: { address?: Partial<Address>; onSubmit?: (address: Omit<Address, 'id'>) => Promise<void> | void }) { const [loading, setLoading] = useState(false); const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const data = new FormData(event.currentTarget); setLoading(true); await onSubmit?.({ label: String(data.get('label')), line1: String(data.get('line1')), city: String(data.get('city')), state: String(data.get('state')), postalCode: String(data.get('postalCode')), country: String(data.get('country')), isDefault: data.get('isDefault') === 'on' }); setLoading(false) }; return <form className="space-y-4" onSubmit={submit}><Input id="address-label" name="label" label="Label" defaultValue={address?.label} placeholder="Home" required /><Input id="address-line1" name="line1" label="Address" defaultValue={address?.line1} required /><div className="grid gap-4 sm:grid-cols-2"><Input id="address-city" name="city" label="City" defaultValue={address?.city} required /><Input id="address-state" name="state" label="State" defaultValue={address?.state} /></div><div className="grid gap-4 sm:grid-cols-2"><Input id="address-postal" name="postalCode" label="Postal code" defaultValue={address?.postalCode} required /><Input id="address-country" name="country" label="Country" defaultValue={address?.country} required /></div><Checkbox id="address-default" name="isDefault" label="Use as default address" defaultChecked={address?.isDefault} /><div><Button type="submit" loading={loading}>Save address</Button></div></form> }
+export default AddressForm
