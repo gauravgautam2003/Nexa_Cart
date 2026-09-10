@@ -128,14 +128,14 @@ export const registerUser = async (data: RegisterRequest, res: Response): Promis
         password: hashPassword
     })
 
-    const accessToken = await createTokenPair(user.id.toString(), user.email, res);
+    const accessToken = await createTokenPair(user._id.toString(), user.email, res);
 
     return {
         success: true,
         message: "User registered successfully",
         accessToken,
         user: {
-            id: user.id.toString(),
+            id: user._id.toString(),
             name: user.name,
             email: user.email,
             role: user.role,
