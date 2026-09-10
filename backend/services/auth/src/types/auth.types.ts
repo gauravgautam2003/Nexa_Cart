@@ -3,7 +3,7 @@ import type { Request } from "express";
 export interface RegisterRequest {
     name: string,
     email: string,
-    password: string 
+    password: string
 }
 
 export interface LoginRequest {
@@ -14,6 +14,7 @@ export interface LoginRequest {
 export interface AuthRequest {
     success: boolean;
     message: string;
+    accessToken?: string;
     user?: {
         id: string;
         name: string;
