@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { createProxyMiddleware } from "http-proxy-middleware";
+import morgan from "morgan";
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ for (const [route, environmentKey] of serviceProxies) {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(morgan("dev"));
 
 app.get("/health", (_req, res) => {
     res.status(200).json({

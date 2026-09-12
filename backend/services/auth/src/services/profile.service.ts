@@ -1,5 +1,5 @@
 import UserProfile from "../models/profile.model.js";
-import type { CreateUserProfileRequest, UpdateUserProfileRequest, UserProfileResponse } from "../types/user.types.js";
+import type { CreateUserProfileRequest, UpdateUserProfileRequest, UserProfileResponse } from "../types/profile.types.js";
 
 
 /**
