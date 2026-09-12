@@ -25,6 +25,7 @@ export const createUserProfile = async (data: CreateUserProfileRequest): Promise
         avatar: data.avatar,
         dateOfBirth: data.dateOfBirth,
         gender: data.gender,
+        addresses: data.addresses,
     })
 
     return {

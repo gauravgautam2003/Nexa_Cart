@@ -15,6 +15,7 @@ export interface CreateUserProfileRequest {
     avatar?: string;
     dateOfBirth?: Date;
     gender?: "male" | "female" | "other";
+    addresses?: AddressInput[];
 }
 
 export interface UpdateUserProfileRequest {

@@ -3,15 +3,19 @@ import cookieParser from "cookie-parser"
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
+import profileRoutes from "./routes/profile.route.js";
 
 dotenv.config();
 
 const app = express();
 
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use("/api/auth", authRoutes);
+
+app.use("/", authRoutes);
+app.use("/", profileRoutes);
 
 app.get("/health", (_req, res) => {
     res.status(200).json({
