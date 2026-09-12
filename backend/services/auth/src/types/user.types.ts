@@ -22,6 +22,7 @@ export interface UpdateUserProfileRequest {
     avatar?: string;
     dateOfBirth?: Date;
     gender?: "male" | "female" | "other";
+    addresses?: AddressInput[];
 }
 
 export interface UserProfileResponse {

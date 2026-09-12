@@ -21,7 +21,7 @@ export interface IUserProfile extends Document {
 }
 
 const addressSchema = new mongoose.Schema({
-    fullname: {
+    fullName: {
         type: String,
         required: true,
         trim: true

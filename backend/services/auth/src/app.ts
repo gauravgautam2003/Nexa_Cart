@@ -2,6 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser"
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes.js";
+import { errorMiddleware } from "./middleware/error.middleware.js";
 
 dotenv.config();
 
@@ -13,11 +14,13 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 
 app.get("/health", (_req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "NexaCart auth is running",
-    service: "Auth",
-  });
+    res.status(200).json({
+        success: true,
+        message: "NexaCart auth is running",
+        service: "Auth",
+    });
 });
+
+app.use(errorMiddleware);
 
 export default app;
