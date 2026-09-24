@@ -99,27 +99,225 @@ npm start
 ## 📚 Project Structure
 
 ```
-Nexa_Cart/
-├── src/
-│   ├── components/        # React components
-│   ├── pages/            # Page components
-│   ├── styles/           # CSS/SCSS files
-│   ├── utils/            # Utility functions
-│   ├── hooks/            # Custom React hooks
-│   ├── redux/            # Redux store and slices
-│   ├── api/              # API integration
-│   └── types/            # TypeScript type definitions
-├── server/
-│   ├── routes/           # API routes
-│   ├── controllers/       # Route controllers
-│   ├── models/           # Database models
-│   ├── middleware/       # Custom middleware
-│   └── config/           # Configuration files
-├── public/               # Static assets
-├── .env.example          # Environment template
-├── package.json          # Dependencies
-├── tsconfig.json         # TypeScript config
-└── README.md            # This file
+NexaCart/
+│
+├── frontend/
+│   ├── public/
+│   │   ├── images/
+│   │   └── icons/
+│   │
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── (auth)/
+│   │   │   │   ├── login/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── register/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── forgot-password/
+│   │   │   │       └── page.tsx
+│   │   │   │
+│   │   │   ├── (shop)/
+│   │   │   │   ├── products/
+│   │   │   │   │   ├── page.tsx
+│   │   │   │   │   └── [id]/
+│   │   │   │   │       └── page.tsx
+│   │   │   │   ├── cart/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── checkout/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── orders/
+│   │   │   │   │   ├── page.tsx
+│   │   │   │   │   └── [id]/
+│   │   │   │   │       └── page.tsx
+│   │   │   │   └── wishlist/
+│   │   │   │       └── page.tsx
+│   │   │   │
+│   │   │   ├── profile/
+│   │   │   │   └── page.tsx
+│   │   │   │
+│   │   │   ├── admin/
+│   │   │   │   ├── dashboard/
+│   │   │   │   ├── products/
+│   │   │   │   ├── orders/
+│   │   │   │   ├── inventory/
+│   │   │   │   └── users/
+│   │   │   │
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   │
+│   │   ├── components/
+│   │   │   ├── ui/
+│   │   │   ├── layout/
+│   │   │   ├── product/
+│   │   │   ├── cart/
+│   │   │   ├── checkout/
+│   │   │   ├── order/
+│   │   │   └── admin/
+│   │   │
+│   │   ├── features/
+│   │   │   ├── auth/
+│   │   │   ├── products/
+│   │   │   ├── cart/
+│   │   │   ├── wishlist/
+│   │   │   ├── checkout/
+│   │   │   └── orders/
+│   │   │
+│   │   ├── redux/
+│   │   │   ├── store.ts
+│   │   │   └── slices/
+│   │   │       ├── auth.slice.ts
+│   │   │       ├── cart.slice.ts
+│   │   │       ├── product.slice.ts
+│   │   │       └── order.slice.ts
+│   │   │
+│   │   ├── hooks/
+│   │   ├── lib/
+│   │   │   ├── axios.ts
+│   │   │   └── utils.ts
+│   │   ├── types/
+│   │   └── constants/
+│   │
+│   ├── .env.local
+│   ├── next.config.ts
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── Dockerfile
+│
+│
+├── backend/
+│   │
+│   ├── api-gateway/
+│   │   ├── src/
+│   │   │   ├── config/
+│   │   │   ├── middleware/
+│   │   │   ├── routes/
+│   │   │   ├── proxy/
+│   │   │   ├── app.ts
+│   │   │   └── server.ts
+│   │   ├── .env
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── Dockerfile
+│   │
+│   ├── services/
+│   │   │
+│   │   ├── auth-service/
+│   │   │   ├── src/
+│   │   │   │   ├── config/
+│   │   │   │   │   ├── db.ts
+│   │   │   │   │   └── token.ts
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── user.model.ts
+│   │   │   │   │   └── refreshToken.model.ts
+│   │   │   │   ├── types/
+│   │   │   │   │   ├── auth.types.ts
+│   │   │   │   │   └── express.d.ts
+│   │   │   │   ├── services/
+│   │   │   │   │   ├── auth.service.ts
+│   │   │   │   │   └── profile.service.ts
+│   │   │   │   ├── controllers/
+│   │   │   │   │   ├── auth.controller.ts
+│   │   │   │   │   └── profile.controller.ts
+│   │   │   │   ├── routes/
+│   │   │   │   │   ├── auth.routes.ts
+│   │   │   │   │   └── profile.routes.ts
+│   │   │   │   ├── middleware/
+│   │   │   │   │   ├── auth.middleware.ts
+│   │   │   │   │   └── error.middleware.ts
+│   │   │   │   ├── app.ts
+│   │   │   │   └── server.ts
+│   │   │   ├── .env
+│   │   │   ├── package.json
+│   │   │   ├── tsconfig.json
+│   │   │   └── Dockerfile
+│   │   │
+│   │   ├── product-service/
+│   │   │   ├── src/
+│   │   │   │   ├── config/
+│   │   │   │   │   └── db.ts
+│   │   │   │   ├── models/
+│   │   │   │   │   └── product.model.ts
+│   │   │   │   ├── types/
+│   │   │   │   │   └── product.types.ts
+│   │   │   │   ├── services/
+│   │   │   │   │   └── product.service.ts
+│   │   │   │   ├── controllers/
+│   │   │   │   │   └── product.controller.ts
+│   │   │   │   ├── routes/
+│   │   │   │   │   └── product.routes.ts
+│   │   │   │   ├── middleware/
+│   │   │   │   │   └── error.middleware.ts
+│   │   │   │   ├── app.ts
+│   │   │   │   └── server.ts
+│   │   │   ├── .env
+│   │   │   ├── package.json
+│   │   │   ├── tsconfig.json
+│   │   │   └── Dockerfile
+│   │   │
+│   │   ├── cart-service/
+│   │   │   ├── src/
+│   │   │   │   ├── config/
+│   │   │   │   │   └── db.ts
+│   │   │   │   ├── models/
+│   │   │   │   │   └── cart.model.ts
+│   │   │   │   ├── types/
+│   │   │   │   │   └── cart.type.ts
+│   │   │   │   ├── services/
+│   │   │   │   │   └── cart.service.ts
+│   │   │   │   ├── controllers/
+│   │   │   │   │   └── cart.controller.ts
+│   │   │   │   ├── routes/
+│   │   │   │   │   └── cart.routes.ts
+│   │   │   │   ├── middleware/
+│   │   │   │   │   └── error.middleware.ts
+│   │   │   │   ├── app.ts
+│   │   │   │   └── server.ts
+│   │   │   ├── .env
+│   │   │   ├── package.json
+│   │   │   ├── tsconfig.json
+│   │   │   └── Dockerfile
+│   │   │
+│   │   ├── inventory-service/
+│   │   │   └── ...
+│   │   │
+│   │   ├── order-service/
+│   │   │   └── ...
+│   │   │
+│   │   ├── payment-service/
+│   │   │   └── ...
+│   │   │
+│   │   └── notification-service/
+│   │       └── ...
+│   │
+│   ├── shared/
+│   │   ├── types/
+│   │   ├── constants/
+│   │   └── utils/
+│   │
+│   ├── docker-compose.yml
+│   └── .env
+│
+│
+├── docs/
+│   ├── architecture/
+│   │   ├── system-design.md
+│   │   ├── api-flow.md
+│   │   └── database-design.md
+│   ├── diagrams/
+│   │   ├── architecture.png
+│   │   └── request-flow.png
+│   └── api/
+│       └── API.md
+│
+├── .github/
+│   └── workflows/
+│       ├── frontend.yml
+│       └── backend.yml
+│
+├── .gitignore
+├── docker-compose.yml
+├── README.md
+└── LICENSE
 ```
 
 ## 🔐 Security Features
