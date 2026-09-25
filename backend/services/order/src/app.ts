@@ -1,19 +1,25 @@
 import express from "express";
-import dotenv from "dotenv";
+import cors from "cors";
 
-dotenv.config();
+import orderRoutes from "./routes/order.route.js";
+import { errorMiddleware } from "./middleware/error.middleware.js";
 
 const app = express();
 
+app.use(cors());
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 app.get("/health", (_req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "NexaCart order is running",
-    service: "Order",
-  });
+    res.status(200).json({
+        success: true,
+        service: "order-service",
+        message: "Order Service is running",
+    });
 });
+
+app.use("/", orderRoutes);
+
+app.use(errorMiddleware);
 
 export default app;
