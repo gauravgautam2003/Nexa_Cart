@@ -1,57 +1,44 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import { createProxyMiddleware } from "http-proxy-middleware";
 import morgan from "morgan";
 
-dotenv.config();
+import { authProxy, productProxy, cartProxy, orderProxy, paymentProxy, inventoryProxy, notificationProxy } from "./proxy/service.proxy.js";
+import { errorMiddleware } from "./middleware/error.middleware.js";
 
 const app = express();
 
 app.use(
     cors({
-        origin: process.env.FRONTEND_URL,
+        origin: process.env.FRONTEND_URL || "http://localhost:4000",
         credentials: true,
     })
 );
 
-const serviceProxies = [
-    ["/api/auth", "AUTH_SERVICE"],
-    ["/api/users", "USER_SERVICE"],
-    ["/api/products", "PRODUCT_SERVICE"],
-    ["/api/cart", "CART_SERVICE"],
-    ["/api/orders", "ORDER_SERVICE"],
-    ["/api/payments", "PAYMENT_SERVICE"],
-    ["/api/inventory", "INVENTORY_SERVICE"],
-    ["/api/notifications", "NOTIFICATION_SERVICE"],
-] as const;
-
-for (const [route, environmentKey] of serviceProxies) {
-    const target = process.env[environmentKey];
-
-    if (!target) {
-        throw new Error(`${environmentKey} is not configured`);
-    }
-
-    app.use(
-        route,
-        createProxyMiddleware({
-            target,
-            changeOrigin: true,
-        })
-    );
-}
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
 app.get("/health", (_req, res) => {
     res.status(200).json({
         success: true,
-        message: "NexaCart API Gateway is running",
-        service: "Gateway",
+        message: "API Gateway is running",
     });
 });
+
+/*
+ * Important:
+ * Do NOT use express.json() before these proxy routes.
+ *
+ * The gateway should forward the request body
+ * to the microservices.
+ */
+
+app.use("/api/auth", authProxy);
+app.use("/api/products", productProxy);
+app.use("/api/cart", cartProxy);
+app.use("/api/orders", orderProxy);
+app.use("/api/payments", paymentProxy);
+app.use("/api/inventory", inventoryProxy);
+app.use("/api/notifications", notificationProxy);
+
+app.use(errorMiddleware);
 
 export default app;
