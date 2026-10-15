@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Order from "../models/order.model.js";
+import { reserveInventory, releaseInventory, confirmInventory } from "./inventory.client.js";
 import type { CreateOrderRequest, UpdateOrderStatusRequest, OrderResponse } from "../types/order.type.js";
 
 const createOrderResponse = (order: InstanceType<typeof Order>): OrderResponse => ({
