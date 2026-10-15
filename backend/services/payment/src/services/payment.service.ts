@@ -98,10 +98,7 @@ export const createPaymentOrder = async (
     };
 };
 
-export const verifyPayment = async (
-    userId: string,
-    data: VerifyPaymentRequest
-): Promise<PaymentResponse> => {
+export const verifyPayment = async (userId: string, data: VerifyPaymentRequest): Promise<PaymentResponse> => {
     if (!mongoose.isValidObjectId(userId)) {
         throw new Error("Invalid user ID");
     }
@@ -118,43 +115,27 @@ export const verifyPayment = async (
     const secret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!secret) {
-        throw new Error(
-            "RAZORPAY_KEY_SECRET is not defined"
-        );
+        throw new Error("RAZORPAY_KEY_SECRET is not defined");
     }
 
-    const generatedSignature =
-        crypto
-            .createHmac("sha256", secret)
-            .update(
+    const generatedSignature = crypto.createHmac("sha256", secret).update(
                 `${data.razorpayOrderId}|${data.razorpayPaymentId}`
-            )
-            .digest("hex");
+            ).digest("hex");
 
-    const isValid =
-        generatedSignature ===
-        data.razorpaySignature;
+    const isValid = generatedSignature === data.razorpaySignature;
 
     if (!isValid) {
         payment.status = "failed";
-
         await payment.save();
 
-        throw new Error(
-            "Invalid payment signature"
-        );
+        throw new Error("Invalid payment signature");
     }
 
-    payment.razorpayPaymentId =
-        data.razorpayPaymentId;
-
-    payment.razorpaySignature =
-        data.razorpaySignature;
-
+    payment.razorpayPaymentId = data.razorpayPaymentId;
+    payment.razorpaySignature = data.razorpaySignature;
     payment.status = "paid";
 
     await payment.save();
-
     return createPaymentResponse(payment);
 };
 

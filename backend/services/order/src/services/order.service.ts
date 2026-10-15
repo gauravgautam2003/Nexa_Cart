@@ -88,9 +88,7 @@ export const createOrder = async (userId: string, data: CreateOrderRequest): Pro
     }
 
     const subtotal = data.items.reduce(
-        (total, item) =>
-            total + item.price * item.quantity,
-        0
+        (total, item) => total + item.price * item.quantity, 0
     );
 
     const totalAmount = subtotal + shippingFee - discount;
@@ -99,57 +97,112 @@ export const createOrder = async (userId: string, data: CreateOrderRequest): Pro
         throw new Error("Invalid order total");
     }
 
-    const order = await Order.create({
+    const reservedItems: Array<{
+        productId: string;
+        quantity: number;
+    }> = [];
 
-        userId: new mongoose.Types.ObjectId(userId),
-        items: data.items.map((item) => ({
-            productId: new mongoose.Types.ObjectId(
-                item.productId
-            ),
-            sku: item.sku,
-            name: item.name,
+    try {
+        for (const item of data.items) {
+            await reserveInventory(item.productId, item.quantity);
 
-            ...(item.image !== undefined && {
-                image: item.image,
-            }),
+            reservedItems.push({
+                productId: item.productId,
+                quantity: item.quantity,
+            });
+        }
 
-            price: item.price,
-            quantity: item.quantity,
-        })),
+        const order = await Order.create({
 
-        shippingAddress: {
-            fullName: data.shippingAddress.fullName,
-            phone: data.shippingAddress.phone,
-            addressLine1:
-                data.shippingAddress.addressLine1,
+            userId: new mongoose.Types.ObjectId(userId),
+            items: data.items.map((item) => ({
+                productId: new mongoose.Types.ObjectId(item.productId),
+                sku: item.sku,
+                name: item.name,
 
-            ...(data.shippingAddress.addressLine2 !==
-                undefined && {
-                addressLine2:
-                    data.shippingAddress.addressLine2,
-            }),
+                ...(item.image !== undefined && { image: item.image, }),
 
-            city: data.shippingAddress.city,
-            state: data.shippingAddress.state,
-            postalCode:
-                data.shippingAddress.postalCode,
-            country:
-                data.shippingAddress.country ?? "India",
-        },
+                price: item.price,
+                quantity: item.quantity,
+            })),
 
-        subtotal,
-        shippingFee,
-        discount,
-        totalAmount,
+            shippingAddress: {
+                fullName: data.shippingAddress.fullName,
+                phone: data.shippingAddress.phone,
+                addressLine1: data.shippingAddress.addressLine1,
 
-        orderStatus: "pending",
-        paymentStatus: "pending",
+                ...(data.shippingAddress.addressLine2 !== undefined && {
+                    addressLine2: data.shippingAddress.addressLine2,
+                }),
 
-        paymentMethod: data.paymentMethod,
-    });
+                city: data.shippingAddress.city,
+                state: data.shippingAddress.state,
+                postalCode: data.shippingAddress.postalCode,
+                country: data.shippingAddress.country ?? "India",
+            },
+
+            subtotal,
+            shippingFee,
+            discount,
+            totalAmount,
+
+            orderStatus: "pending",
+            paymentStatus: "pending",
+
+            paymentMethod: data.paymentMethod,
+        });
+
+        return createOrderResponse(order);
+    } catch (error) {
+
+        for (const item of [...reservedItems].reverse()) {
+            try {
+                await releaseInventory(item.productId, item.quantity);
+            } catch (releaseError) {
+                console.error("Inventory rollback failed:", {
+                    item,
+                    releaseError,
+                });
+            }
+        }
+
+        throw error;
+    }
+};
+
+export const confirmOrderInventory = async (orderId: string, userId: string): Promise<OrderResponse> => {
+    if (!mongoose.isValidObjectId(orderId)) {
+        throw new Error("Invalid order ID");
+    }
+
+    if (!mongoose.isValidObjectId(userId)) {
+        throw new Error("Invalid user ID");
+    }
+
+    const order = await Order.findOne({ _id: orderId, userId });
+
+    if (!order) {
+        throw new Error("Order not found");
+    }
+
+    if (order.paymentStatus !== "paid") {
+        throw new Error("Payment must be verified before confirming inventory");
+    }
+
+    if (order.orderStatus === "cancelled") {
+        throw new Error("Cannot confirm inventory for a cancelled order");
+    }
+
+    for (const item of order.items) {
+        await confirmInventory(item.productId.toString(), item.quantity);
+    }
+
+    order.orderStatus = "confirmed";
+    await order.save();
 
     return createOrderResponse(order);
 };
+
 
 export const getOrderById = async (userId: string, orderId: string): Promise<OrderResponse> => {
     if (!mongoose.isValidObjectId(orderId)) {
