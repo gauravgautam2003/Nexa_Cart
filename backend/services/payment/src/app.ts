@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 
 import paymentRoutes from "./routes/payment.route.js";
+import { resolveIdentity } from "./middleware/identity.middleware.js";
 import { errorMiddleware } from "./middleware/error.middlerware.js";
 
 const app = express();
@@ -18,7 +19,11 @@ app.get("/health", (_req, res) => {
     });
 });
 
-app.use("/", paymentRoutes);
+/*
+ * The gateway strips `/api/payments`, so this service mounts at `/` and
+ * identity arrives as `x-user-id`.
+ */
+app.use("/", resolveIdentity, paymentRoutes);
 app.use(errorMiddleware);
 
 export default app;

@@ -46,7 +46,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
 };
 
 /**
- *  Handles logout requests and token revocation. 
+ *  Handles logout requests and token revocation.
 */
 
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -54,6 +54,21 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
         await logoutUser(req, res);
         res.status(200).json({ success: true, message: "Logged out successfully" });
     } catch (error) {
-        next(error)
+        next(error);
     }
+};
+
+/**
+ *  Returns the identity behind a valid access token.
+ *  The API gateway calls this once per request to resolve `x-user-id`.
+*/
+
+export const verifySession = async (req: Request, res: Response): Promise<void> => {
+    res.status(200).json({
+        success: true,
+        user: {
+            id: req.user?.id,
+            role: req.user?.role ?? "user",
+        },
+    });
 };

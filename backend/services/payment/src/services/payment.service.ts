@@ -2,7 +2,8 @@ import crypto from "crypto";
 import mongoose from "mongoose";
 
 import Payment from "../models/payment.model.js";
-import razorpay from "../config/razorpay.js";
+import { getRazorpay, isRazorpayConfigured, getRazorpayKeyId } from "../config/razorpay.js";
+import { notifyOrderPaymentVerified, notifyOrderPaymentFailed } from "./order.client.js";
 
 import type {
     CreatePaymentOrderRequest,
@@ -37,6 +38,12 @@ const createPaymentResponse = (
     updatedAt: payment.updatedAt,
 });
 
+/** Public checkout config: lets the frontend decide whether to offer Razorpay. */
+export const getPaymentConfig = (): { razorpayEnabled: boolean; keyId?: string } => ({
+    razorpayEnabled: isRazorpayConfigured(),
+    ...(getRazorpayKeyId() !== undefined && { keyId: getRazorpayKeyId() }),
+});
+
 export const createPaymentOrder = async (
     userId: string,
     data: CreatePaymentOrderRequest
@@ -66,6 +73,8 @@ export const createPaymentOrder = async (
 
     const currency = data.currency ?? "INR";
 
+    const razorpay = getRazorpay();
+
     // Razorpay expects amount in paise
     const razorpayOrder = await razorpay.orders.create({
         amount: Math.round(amount * 100),
@@ -94,7 +103,7 @@ export const createPaymentOrder = async (
             id: razorpayOrder.id,
             amount: Number(razorpayOrder.amount),
             currency: razorpayOrder.currency,
-        }    
+        }
     };
 };
 
@@ -115,7 +124,7 @@ export const verifyPayment = async (userId: string, data: VerifyPaymentRequest):
     const secret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!secret) {
-        throw new Error("RAZORPAY_KEY_SECRET is not defined");
+        throw new Error("Payment gateway is not configured");
     }
 
     const generatedSignature = crypto.createHmac("sha256", secret).update(
@@ -128,6 +137,8 @@ export const verifyPayment = async (userId: string, data: VerifyPaymentRequest):
         payment.status = "failed";
         await payment.save();
 
+        await notifyOrderPaymentFailed(payment.orderId.toString(), userId);
+
         throw new Error("Invalid payment signature");
     }
 
@@ -136,6 +147,10 @@ export const verifyPayment = async (userId: string, data: VerifyPaymentRequest):
     payment.status = "paid";
 
     await payment.save();
+
+    // Close the loop with the order service: mark paid + confirm inventory.
+    await notifyOrderPaymentVerified(payment.orderId.toString(), userId);
+
     return createPaymentResponse(payment);
 };
 

@@ -23,6 +23,32 @@ export interface UpdateProductRequest {
     isActive?: boolean
 }
 
+export type ProductSort =
+    | "newest"
+    | "oldest"
+    | "price-asc"
+    | "price-desc"
+    | "rating"
+    | "discount";
+
+export interface ProductQuery {
+    category?: string;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    brand?: string;
+    sort?: ProductSort;
+    page?: number;
+    limit?: number;
+}
+
+export interface PaginationMeta {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+}
+
 export interface ProductResponse {
     id: string;
     name: string;

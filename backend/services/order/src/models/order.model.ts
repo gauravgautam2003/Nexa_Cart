@@ -38,6 +38,9 @@ export interface IOrder extends Document {
 
     paymentId?: string;
 
+    /** True once the reserved stock has been converted into a completed sale. */
+    inventoryConfirmed?: boolean;
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -210,6 +213,11 @@ const orderSchema = new Schema<IOrder>(
         paymentId: {
             type: String,
             trim: true,
+        },
+
+        inventoryConfirmed: {
+            type: Boolean,
+            default: false,
         },
     },
     {

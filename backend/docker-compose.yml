@@ -32,24 +32,34 @@ services:
   # API GATEWAY
   # =========================
 
-  api-gateway:
+  gateway:
     build:
       context: ./gateway
-    container_name: nexacart-api-gateway
+    container_name: nexacart-gateway
     restart: unless-stopped
     ports:
       - "5000:5000"
     env_file:
       - ./gateway/.env
+    environment:
+      # Override host-based URLs with docker DNS names
+      AUTH_SERVICE: http://auth-service:5001
+      PRODUCT_SERVICE: http://product-service:5003
+      CART_SERVICE: http://cart-service:5004
+      ORDER_SERVICE: http://order-service:5005
+      PAYMENT_SERVICE: http://payment-service:5006
+      INVENTORY_SERVICE: http://inventory-service:5007
+      NOTIFICATION_SERVICE: http://notification-service:5008
+      AGENT_SERVICE: http://agent-service:5009
     depends_on:
-      - auth
-      - user
-      - product
-      - cart
-      - order
-      - payment
-      - inventory
-      - notification
+      - auth-service
+      - product-service
+      - cart-service
+      - order-service
+      - payment-service
+      - inventory-service
+      - notification-service
+      - agent-service
 
 
   # =========================
@@ -70,23 +80,6 @@ services:
 
 
   # =========================
-  # USER SERVICE
-  # =========================
-
-  user-service:
-    build:
-      context: ./services/user
-    container_name: nexacart-user
-    restart: unless-stopped
-    ports:
-      - "5002:5002"
-    env_file:
-      - ./services/user/.env
-    depends_on:
-      - mongodb
-
-
-  # =========================
   # PRODUCT SERVICE
   # =========================
 
@@ -99,6 +92,8 @@ services:
       - "5003:5003"
     env_file:
       - ./services/product/.env
+    environment:
+      AGENT_SERVICE_URL: http://agent-service:5009
     depends_on:
       - mongodb
 
@@ -116,11 +111,11 @@ services:
       - "5004:5004"
     env_file:
       - ./services/cart/.env
+    environment:
+      PRODUCT_SERVICE_URL: http://product-service:5003
     depends_on:
       - mongodb
-      - redis
-      - user
-      - product
+      - product-service
 
 
   # =========================
@@ -136,11 +131,14 @@ services:
       - "5005:5005"
     env_file:
       - ./services/order/.env
+    environment:
+      INVENTORY_SERVICE_URL: http://inventory-service:5007
+      NOTIFICATION_SERVICE_URL: http://notification-service:5008
     depends_on:
       - mongodb
-      - cart
-      - inventory
-      - payment
+      - cart-service
+      - inventory-service
+      - payment-service
 
 
   # =========================
@@ -156,8 +154,11 @@ services:
       - "5006:5006"
     env_file:
       - ./services/payment/.env
+    environment:
+      ORDER_SERVICE_URL: http://order-service:5005
     depends_on:
       - mongodb
+      - order-service
 
 
   # =========================
@@ -175,7 +176,6 @@ services:
       - ./services/inventory/.env
     depends_on:
       - mongodb
-      - product
 
 
   # =========================
@@ -192,8 +192,29 @@ services:
     env_file:
       - ./services/notification/.env
     depends_on:
-      - user
-      - order
+      - mongodb
+
+
+  # =========================
+  # AGENT SERVICE (NexaGuard)
+  # =========================
+
+  agent-service:
+    build:
+      context: ./services/agent
+    container_name: nexacart-agent
+    restart: unless-stopped
+    ports:
+      - "5009:5009"
+    environment:
+      PORT: 5009
+      MONGO_URI: mongodb://mongodb:27017/nexa_agent
+      PRODUCT_SERVICE_URL: http://product-service:5003
+      INVENTORY_SERVICE_URL: http://inventory-service:5007
+    depends_on:
+      - mongodb
+      - product-service
+      - inventory-service
 
 
 # =========================

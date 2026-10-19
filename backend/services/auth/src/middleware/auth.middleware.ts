@@ -3,9 +3,22 @@ import jwt from "jsonwebtoken";
 
 const SECRET_KEY = process.env.JWT_SECRET || "your-super-secret-key";
 
-/** Validates the access-token cookie and attaches its user id to the request. */
+/** Extracts the access token from the `accessToken` cookie or an Authorization header. */
+const extractToken = (req: Request): string | undefined => {
+    const cookieToken = req.cookies?.accessToken as string | undefined;
+    if (cookieToken) return cookieToken;
+
+    const authorization = req.headers.authorization;
+    if (authorization?.startsWith("Bearer ")) {
+        return authorization.slice("Bearer ".length).trim() || undefined;
+    }
+
+    return undefined;
+};
+
+/** Validates the access token and attaches its user id to the request. */
 export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
-    const token = req.cookies?.accessToken as string | undefined;
+    const token = extractToken(req);
 
     if (!token) {
         res.status(401).json({

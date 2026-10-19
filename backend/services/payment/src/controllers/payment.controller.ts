@@ -8,7 +8,15 @@ import {
     createPaymentOrder,
     verifyPayment,
     getPaymentByOrderId,
+    getPaymentConfig,
 } from "../services/payment.service.js";
+
+export const getConfig = async (_req: Request, res: Response): Promise<void> => {
+    res.status(200).json({
+        success: true,
+        data: getPaymentConfig(),
+    });
+};
 
 export const createOrder = async (
     req: Request,

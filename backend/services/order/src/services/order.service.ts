@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Order from "../models/order.model.js";
 import { reserveInventory, releaseInventory, confirmInventory } from "./inventory.client.js";
+import { sendOrderNotification } from "./notification.client.js";
 import type { CreateOrderRequest, UpdateOrderStatusRequest, OrderResponse } from "../types/order.type.js";
 
 const createOrderResponse = (order: InstanceType<typeof Order>): OrderResponse => ({
@@ -152,6 +153,13 @@ export const createOrder = async (userId: string, data: CreateOrderRequest): Pro
             paymentMethod: data.paymentMethod,
         });
 
+        await sendOrderNotification({
+            userId,
+            title: "Order placed",
+            message: `Your order ${order._id.toString()} has been placed. Total: ₹${totalAmount.toFixed(2)}.`,
+            metadata: { orderId: order._id.toString(), event: "order.placed" },
+        });
+
         return createOrderResponse(order);
     } catch (error) {
 
@@ -193,11 +201,16 @@ export const confirmOrderInventory = async (orderId: string, userId: string): Pr
         throw new Error("Cannot confirm inventory for a cancelled order");
     }
 
+    if (order.inventoryConfirmed) {
+        return createOrderResponse(order);
+    }
+
     for (const item of order.items) {
         await confirmInventory(item.productId.toString(), item.quantity);
     }
 
     order.orderStatus = "confirmed";
+    order.inventoryConfirmed = true;
     await order.save();
 
     return createOrderResponse(order);
@@ -227,12 +240,12 @@ export const getUserOrders = async (userId: string): Promise<OrderResponse[]> =>
     return orders.map(createOrderResponse);
 };
 
-export const updateOrderStatus = async (orderId: string, data: UpdateOrderStatusRequest): Promise<OrderResponse> => {
+export const updateOrderStatus = async (orderId: string, userId: string, data: UpdateOrderStatusRequest): Promise<OrderResponse> => {
     if (!mongoose.isValidObjectId(orderId)) {
         throw new Error("Invalid order ID");
     }
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findOne({ _id: orderId, ...(mongoose.isValidObjectId(userId) && { userId }) });
 
     if (!order) {
         throw new Error("Order not found");
@@ -247,7 +260,35 @@ export const updateOrderStatus = async (orderId: string, data: UpdateOrderStatus
     }
 
     order.orderStatus = data.status;
+
+    /*
+     * A delivered cash-on-delivery order settles the payment and converts
+     * the reserved stock into a completed sale.
+     */
+    if (data.status === "delivered" && order.paymentMethod === "cod" && !order.inventoryConfirmed) {
+        for (const item of order.items) {
+            await confirmInventory(item.productId.toString(), item.quantity);
+        }
+        order.inventoryConfirmed = true;
+        order.paymentStatus = "paid";
+    }
+
     await order.save();
+
+    const statusMessages: Record<string, string> = {
+        confirmed: "has been confirmed",
+        processing: "is being prepared",
+        shipped: "has been shipped",
+        delivered: "has been delivered",
+        cancelled: "has been cancelled",
+    };
+
+    await sendOrderNotification({
+        userId: order.userId.toString(),
+        title: `Order ${data.status}`,
+        message: `Your order ${order._id.toString()} ${statusMessages[data.status] ?? `is now ${data.status}`}.`,
+        metadata: { orderId: order._id.toString(), event: `order.${data.status}` },
+    });
 
     return createOrderResponse(order);
 };
@@ -272,18 +313,49 @@ export const cancelOrder = async (userId: string, orderId: string): Promise<Orde
     }
 
     order.orderStatus = "cancelled";
+
+    /*
+     * Unpaid orders still hold reserved stock; give it back so other
+     * shoppers can buy it again.
+     */
+    if (order.paymentStatus !== "paid" && !order.inventoryConfirmed) {
+        for (const item of order.items) {
+            try {
+                await releaseInventory(item.productId.toString(), item.quantity);
+            } catch (releaseError) {
+                console.error("Inventory release failed during cancel:", {
+                    orderId,
+                    item: item.productId.toString(),
+                    releaseError,
+                });
+            }
+        }
+    }
+
     await order.save();
+
+    await sendOrderNotification({
+        userId,
+        title: "Order cancelled",
+        message: `Your order ${order._id.toString()} has been cancelled.`,
+        metadata: { orderId: order._id.toString(), event: "order.cancelled" },
+    });
 
     return createOrderResponse(order);
 };
 
-export const updatePaymentStatus = async (orderId: string, paymentStatus: | "pending" | "paid" | "failed" | "refunded", paymentId?: string): Promise<OrderResponse> => {
+export const updatePaymentStatus = async (
+    orderId: string,
+    userId: string,
+    paymentStatus: "pending" | "paid" | "failed" | "refunded",
+    paymentId?: string,
+): Promise<OrderResponse> => {
 
     if (!mongoose.isValidObjectId(orderId)) {
         throw new Error("Invalid order ID");
     }
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findOne({ _id: orderId, ...(mongoose.isValidObjectId(userId) && { userId }) });
 
     if (!order) {
         throw new Error("Order not found");

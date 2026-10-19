@@ -1,6 +1,14 @@
 import Product from "../models/product.model.js";
 import type { IProduct } from "../models/product.model.js";
-import type { CreateProductRequest, UpdateProductRequest, ProductResponse } from "../types/product.types.js";
+import { triggerVerification } from "./agent.client.js";
+import type {
+    CreateProductRequest,
+    UpdateProductRequest,
+    ProductResponse,
+    ProductQuery,
+    PaginationMeta,
+    ProductSort,
+} from "../types/product.types.js";
 
 
 const generateSlug = (name: string): string => {
@@ -31,6 +39,18 @@ const toProductResponse = (product: IProduct): ProductResponse => ({
     updatedAt: product.updatedAt,
 });
 
+const SORT_OPTIONS: Record<ProductSort, Record<string, 1 | -1>> = {
+    newest: { createdAt: -1 },
+    oldest: { createdAt: 1 },
+    "price-asc": { price: 1 },
+    "price-desc": { price: -1 },
+    rating: { rating: -1, reviewCount: -1 },
+    discount: { discountPrice: 1, price: -1 },
+};
+
+const DEFAULT_PAGE_SIZE = 24;
+const MAX_PAGE_SIZE = 60;
+
 /** Creates a product after validating its SKU and generated slug are unique. */
 export const createProduct = async (data: CreateProductRequest, createdBy: string): Promise<ProductResponse> => {
     const slug = generateSlug(data.name);
@@ -51,23 +71,67 @@ export const createProduct = async (data: CreateProductRequest, createdBy: strin
     }
 
     const product = await Product.create({ ...data, slug, createdBy });
+
+    // The NexaGuard agent re-checks the listing automatically.
+    triggerVerification(product._id.toString());
+
     return toProductResponse(product);
 };
 
-/** Returns all active products, optionally filtered by category or search text. */
-export const listProducts = async (query?: { category?: string; search?: string }): Promise<ProductResponse[]> => {
+/** Returns active products with filtering, sorting and pagination. */
+export const listProducts = async (query?: ProductQuery): Promise<{ products: ProductResponse[]; pagination: PaginationMeta }> => {
     const filter: Record<string, unknown> = { isActive: true };
 
     if (query?.category) {
         filter.category = query.category;
     }
 
+    if (query?.brand) {
+        filter.brand = query.brand;
+    }
+
     if (query?.search) {
         filter.$text = { $search: query.search };
     }
 
-    const products = await Product.find(filter).sort({ createdAt: -1 });
-    return products.map(toProductResponse);
+    const priceFilters: Record<string, number> = {};
+    if (typeof query?.minPrice === "number" && Number.isFinite(query.minPrice)) {
+        priceFilters.$gte = query.minPrice;
+    }
+    if (typeof query?.maxPrice === "number" && Number.isFinite(query.maxPrice)) {
+        priceFilters.$lte = query.maxPrice;
+    }
+    if (Object.keys(priceFilters).length > 0) {
+        filter.price = priceFilters;
+    }
+
+    const page = Math.max(1, Math.floor(query?.page ?? 1));
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(query?.limit ?? DEFAULT_PAGE_SIZE)));
+    const sort = SORT_OPTIONS[query?.sort ?? "newest"] ?? SORT_OPTIONS.newest;
+
+    const [products, total] = await Promise.all([
+        Product.find(filter)
+            .sort(sort)
+            .skip((page - 1) * limit)
+            .limit(limit),
+        Product.countDocuments(filter),
+    ]);
+
+    return {
+        products: products.map(toProductResponse),
+        pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.max(1, Math.ceil(total / limit)),
+        },
+    };
+};
+
+/** Returns every distinct category for navigation and filters. */
+export const listCategories = async (): Promise<string[]> => {
+    const categories = await Product.distinct("category", { isActive: true });
+    return categories.sort();
 };
 
 /** Finds one product by its MongoDB id. */
@@ -98,6 +162,9 @@ export const updateProduct = async (productId: string, data: UpdateProductReques
     if (!product) {
         throw new Error("Product not found");
     }
+
+    // Product changed -> the agent re-verifies the listing.
+    triggerVerification(product._id.toString());
 
     return toProductResponse(product);
 };

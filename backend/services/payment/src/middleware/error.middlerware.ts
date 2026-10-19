@@ -35,9 +35,14 @@ export const errorMiddleware = (
     ) {
         statusCode = 404;
     } else if (
-        message === "Invalid payment signature"
+        message === "Invalid payment signature" ||
+        message === "Amount must be a valid positive number"
     ) {
         statusCode = 400;
+    } else if (
+        message === "Payment gateway is not configured"
+    ) {
+        statusCode = 503;
     }
 
     res.status(statusCode).json({

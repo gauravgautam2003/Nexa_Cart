@@ -5,23 +5,26 @@ const inventoryClient = axios.create({
     timeout: 5000,
 });
 
+/** Reserves stock for every item while an order is being placed. */
 export const reserveInventory = async (productId: string, quantity: number) => {
-    const { data } = await inventoryClient.post(`/api/inventory/product/${productId}/reserve`, {
+    const { data } = await inventoryClient.post(`/product/${productId}/reserve`, {
         quantity
     });
     return data;
 };
 
+/** Gives reserved stock back when an order is cancelled or payment fails. */
 export const releaseInventory = async (productId: string, quantity: number) => {
-    const { data } = await inventoryClient.post(`/api/inventory/product/${productId}/release`, {
+    const { data } = await inventoryClient.post(`/product/${productId}/release`, {
         quantity
     });
 
     return data;
 };
 
+/** Turns a reservation into a sale once the order is paid. */
 export const confirmInventory = async (productId: string, quantity: number) => {
-    const { data } = await inventoryClient.post(`/api/inventory/product/${productId}/confirm`, {
+    const { data } = await inventoryClient.post(`/product/${productId}/confirm`, {
         quantity
     });
 
