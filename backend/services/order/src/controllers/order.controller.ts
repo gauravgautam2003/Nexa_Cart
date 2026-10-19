@@ -51,7 +51,9 @@ export const getAll = async (
             return;
         }
 
-        const orders = await getUserOrders(userId);
+        // The gateway marks admins with x-user-role; they see every order.
+        const isAdmin = req.header("x-user-role") === "admin";
+        const orders = await getUserOrders(userId, isAdmin);
 
         res.status(200).json({
             success: true,
@@ -118,10 +120,13 @@ export const updateStatus = async (
             return;
         }
 
+        const isAdmin = req.header("x-user-role") === "admin";
+
         const order = await updateOrderStatus(
             id,
             userId ?? "",
-            req.body
+            req.body,
+            isAdmin
         );
 
         res.status(200).json({

@@ -1,14 +1,36 @@
-import type { AuthResponse, LoginInput, RegisterInput } from './auth.types'
+import { api } from "@/services/api";
+import type { AuthResponse, LoginInput, RegisterInput, User } from "./auth.types";
 
-const endpoint = '/api/auth'
+export const login = async (input: LoginInput): Promise<AuthResponse> => {
+    const { data } = await api.post<AuthResponse>("/auth/login", input);
+    return data;
+};
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${endpoint}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-  if (!response.ok) throw new Error('The request could not be completed.')
-  return response.json() as Promise<T>
-}
+export const register = async (input: RegisterInput): Promise<AuthResponse> => {
+    const { data } = await api.post<AuthResponse>("/auth/register", input);
+    return data;
+};
 
-export const login = (input: LoginInput) => post<AuthResponse>('login', input)
-export const register = (input: RegisterInput) => post<AuthResponse>('register', input)
-export const requestPasswordReset = (email: string) => post<void>('forgot-password', { email })
-export const resetPassword = (token: string, password: string) => post<void>('reset-password', { token, password })
+/** Rotates the refresh cookie and returns the current user, or null when signed out. */
+export const restoreSession = async (): Promise<User | null> => {
+    try {
+        const { data } = await api.post<AuthResponse>("/auth/refresh");
+        return data.user ?? null;
+    } catch {
+        return null;
+    }
+};
+
+export const logout = async (): Promise<void> => {
+    await api.post("/auth/logout");
+};
+
+/** Cheap "am I signed in?" probe used by the gateway-facing client. */
+export const verifySession = async (): Promise<{ id: string; role: string } | null> => {
+    try {
+        const { data } = await api.get<{ user?: { id: string; role: string } }>("/auth/verify");
+        return data.user ?? null;
+    } catch {
+        return null;
+    }
+};

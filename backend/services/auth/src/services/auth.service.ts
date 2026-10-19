@@ -29,8 +29,8 @@ const setAuthCookies = (res: Response, accessToken: string, refreshToken: string
  *  Creates, stores, and sets a new access and refresh token pair.
  */
 
-const createTokenPair = async (userId: string, email: string, res: Response): Promise<string> => {
-    const accessToken = generateAccessToken({ id: userId, email });
+const createTokenPair = async (userId: string, email: string, res: Response, role?: string): Promise<string> => {
+    const accessToken = generateAccessToken({ id: userId, email, ...(role ? { role } : {}) });
     const refreshToken = generateRefreshToken();
 
     await RefreshToken.create({
@@ -73,7 +73,7 @@ export const refreshAccessToken = async (req: Request, res: Response): Promise<A
     storedToken.revokedAt = new Date();
     await storedToken.save();
 
-    const accessToken = await createTokenPair(user.id.toString(), user.email, res);
+    const accessToken = await createTokenPair(user.id.toString(), user.email, res, user.role);
 
     return {
         success: true,
@@ -128,7 +128,7 @@ export const registerUser = async (data: RegisterRequest, res: Response): Promis
         password: hashPassword
     })
 
-    const accessToken = await createTokenPair(user._id.toString(), user.email, res);
+    const accessToken = await createTokenPair(user._id.toString(), user.email, res, user.role);
 
     return {
         success: true,
@@ -154,7 +154,7 @@ export const LoginUser = async (data: LoginRequest, res: Response): Promise<Auth
         throw new Error("Invalid email or password");
     }
 
-    const accessToken = await createTokenPair(user.id.toString(), user.email, res);
+    const accessToken = await createTokenPair(user.id.toString(), user.email, res, user.role);
 
     return {
         success: true,

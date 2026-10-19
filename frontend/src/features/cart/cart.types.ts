@@ -1,2 +1,17 @@
-export type CartItem = { id: string; productId: string; name: string; price: number; quantity: number; imageUrl?: string }
-export type Cart = { items: CartItem[]; subtotal: number; shipping: number; tax: number; total: number }
+export interface CartItem {
+    productId: string;
+    sku: string;
+    name: string;
+    image?: string;
+    price: number;
+    quantity: number;
+    itemTotal: number;
+}
+
+export interface Cart {
+    id: string;
+    userId: string;
+    items: CartItem[];
+    totalItems: number;
+    subtotal: number;
+}

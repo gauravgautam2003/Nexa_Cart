@@ -1,15 +1,37 @@
-import type { Product, ProductFilters } from './products.types'
+import { api, compactParams } from "@/services/api";
+import type { Product, ProductInput, ProductListParams, ProductListResponse } from "./products.types";
 
-const endpoint = '/api/products'
-export async function getProducts(filters: ProductFilters = {}): Promise<Product[]> {
-  const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]))
-  const response = await fetch(`${endpoint}?${params}`)
-  if (!response.ok) throw new Error('Unable to load products.')
-  return response.json() as Promise<Product[]>
-}
+export const listProducts = async (params: ProductListParams = {}): Promise<ProductListResponse> => {
+    const { data } = await api.get<{
+        success: boolean;
+        products: Product[];
+        pagination: ProductListResponse["pagination"];
+    }>("/products", { params: compactParams(params as Record<string, unknown>) });
 
-export async function getProduct(id: string): Promise<Product> {
-  const response = await fetch(`${endpoint}/${id}`)
-  if (!response.ok) throw new Error('Product not found.')
-  return response.json() as Promise<Product>
-}
+    return { products: data.products ?? [], pagination: data.pagination };
+};
+
+export const getProduct = async (id: string): Promise<Product> => {
+    const { data } = await api.get<{ success: boolean; product: Product }>(`/products/${id}`);
+    return data.product;
+};
+
+export const getCategories = async (): Promise<string[]> => {
+    const { data } = await api.get<{ success: boolean; categories: string[] }>("/products/categories");
+    return data.categories ?? [];
+};
+
+/** Catalogue write (admin). */
+export const createProduct = async (input: ProductInput): Promise<Product> => {
+    const { data } = await api.post<{ success: boolean; product: Product }>("/products", input);
+    return data.product;
+};
+
+export const updateProduct = async (id: string, input: Partial<ProductInput> & { isActive?: boolean }): Promise<Product> => {
+    const { data } = await api.patch<{ success: boolean; product: Product }>(`/products/${id}`, input);
+    return data.product;
+};
+
+export const deleteProduct = async (id: string): Promise<void> => {
+    await api.delete(`/products/${id}`);
+};

@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "dev:all": "node scripts/dev-all.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

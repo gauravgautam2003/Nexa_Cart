@@ -39,7 +39,7 @@ const createPaymentResponse = (
 });
 
 /** Public checkout config: lets the frontend decide whether to offer Razorpay. */
-export const getPaymentConfig = (): { razorpayEnabled: boolean; keyId?: string } => ({
+export const getPaymentConfig = (): { razorpayEnabled: boolean; keyId?: string | undefined } => ({
     razorpayEnabled: isRazorpayConfigured(),
     ...(getRazorpayKeyId() !== undefined && { keyId: getRazorpayKeyId() }),
 });

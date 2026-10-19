@@ -3,7 +3,8 @@ import jwt from "jsonwebtoken";
 
 export interface UserPayload {
     id: string,
-    email: string
+    email: string,
+    role?: string
 }
 
 const SECRET_KEY: string = process.env.JWT_SECRET || "your-super-secret-key";
@@ -13,7 +14,7 @@ export const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 /** Generates a short-lived JWT for protected resource access. */
 export const generateAccessToken = (user: UserPayload): string => {
     return jwt.sign(
-        { id: user.id, email: user.email },
+        { id: user.id, email: user.email, ...(user.role ? { role: user.role } : {}) },
         SECRET_KEY,
         { expiresIn: "15m" }
     )

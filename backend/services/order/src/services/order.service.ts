@@ -231,21 +231,23 @@ export const getOrderById = async (userId: string, orderId: string): Promise<Ord
     return createOrderResponse(order);
 };
 
-export const getUserOrders = async (userId: string): Promise<OrderResponse[]> => {
-    if (!mongoose.isValidObjectId(userId)) {
+export const getUserOrders = async (userId: string, includeAll = false): Promise<OrderResponse[]> => {
+    if (!includeAll && !mongoose.isValidObjectId(userId)) {
         throw new Error("Invalid user ID");
     }
 
-    const orders = await Order.find({ userId, }).sort({ createdAt: -1, });
+    // Admins (includeAll) see every order; shoppers see only their own.
+    const filter = includeAll ? {} : { userId, };
+    const orders = await Order.find(filter).sort({ createdAt: -1, });
     return orders.map(createOrderResponse);
 };
 
-export const updateOrderStatus = async (orderId: string, userId: string, data: UpdateOrderStatusRequest): Promise<OrderResponse> => {
+export const updateOrderStatus = async (orderId: string, userId: string, data: UpdateOrderStatusRequest, isAdmin = false): Promise<OrderResponse> => {
     if (!mongoose.isValidObjectId(orderId)) {
         throw new Error("Invalid order ID");
     }
 
-    const order = await Order.findOne({ _id: orderId, ...(mongoose.isValidObjectId(userId) && { userId }) });
+    const order = await Order.findOne({ _id: orderId, ...(!isAdmin && mongoose.isValidObjectId(userId) && { userId }) });
 
     if (!order) {
         throw new Error("Order not found");

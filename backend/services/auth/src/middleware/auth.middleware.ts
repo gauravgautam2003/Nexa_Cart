@@ -39,9 +39,12 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
             return;
         }
 
+        // The role travels in the JWT so the gateway can forward it downstream.
+        const role = payload.role === "admin" ? "admin" : "user";
+
         req.user = {
             id: payload.id,
-            role: "user"
+            role,
         };
 
         next();

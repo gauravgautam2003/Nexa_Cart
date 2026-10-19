@@ -1,8 +1,32 @@
-import type { Cart } from './cart.types'
+import { api } from "@/services/api";
+import type { Cart } from "./cart.types";
 
-const endpoint = '/api/cart'
-async function update<T>(path: string, body?: unknown): Promise<T> { const response = await fetch(`${endpoint}${path}`, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined }); if (!response.ok) throw new Error('Unable to update cart.'); return response.json() as Promise<T> }
-export const getCart = () => update<Cart>('')
-export const addToCart = (productId: string, quantity = 1) => update<Cart>('/items', { productId, quantity })
-export const updateCartItem = (itemId: string, quantity: number) => update<Cart>(`/items/${itemId}`, { quantity })
-export const removeCartItem = (itemId: string) => update<Cart>(`/items/${itemId}`, { quantity: 0 })
+interface CartEnvelope {
+    success: boolean;
+    message?: string;
+    cart?: Cart;
+}
+
+export const getCart = async (): Promise<Cart> => {
+    const { data } = await api.get<CartEnvelope>("/cart");
+    return data.cart ?? { id: "", userId: "", items: [], totalItems: 0, subtotal: 0 };
+};
+
+export const addToCart = async (productId: string, quantity = 1): Promise<Cart> => {
+    const { data } = await api.post<CartEnvelope>("/cart/items", { productId, quantity });
+    return data.cart ?? (await getCart());
+};
+
+export const updateCartItem = async (productId: string, quantity: number): Promise<Cart> => {
+    const { data } = await api.patch<CartEnvelope>(`/cart/items/${productId}`, { quantity });
+    return data.cart ?? (await getCart());
+};
+
+export const removeCartItem = async (productId: string): Promise<Cart> => {
+    const { data } = await api.delete<CartEnvelope>(`/cart/items/${productId}`);
+    return data.cart ?? (await getCart());
+};
+
+export const clearCart = async (): Promise<void> => {
+    await api.delete("/cart/clear");
+};

@@ -1,440 +1,235 @@
-# 🛒 Nexa Cart - Modern E-Commerce Platform
+# 🛒 NexaCart — AI-verified online shopping
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat-square&logo=github&logoColor=white)](https://github.com/gauravgautam2003/Nexa_Cart)
+[![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-Nexa Cart is a full-featured e-commerce platform designed to provide a seamless shopping experience. Inspired by leading platforms like Flipkart, Amazon, and Meesho, Nexa Cart brings modern web technologies together to create a scalable and user-friendly online shopping ecosystem.
+NexaCart is a full-stack e-commerce platform built like the big marketplaces — but with one
+twist: **every product listing is automatically verified by an AI agent ("NexaGuard")** before
+shoppers ever see it. The storefront scores each listing on ten checks (pricing, imagery,
+description quality, stock sync with the warehouse, …) and shows the report right on the
+product page.
 
-## ✨ Features
+- 🛍️ **Full shopping flow** — search, filters, sort, pagination, cart, checkout, orders
+- 🤖 **NexaGuard agent** — a dedicated microservice that verifies every product and stores a score/report
+- 💳 **Payments** — Razorpay (UPI/cards/netbanking) with server-side signature verification, plus cash on delivery
+- 🔐 **Auth** — httpOnly cookie sessions with rotating refresh tokens, resolved once at the gateway
+- 📱 **Responsive UI** — Tailwind v4 storefront, mobile drawer, sticky cart/search, admin console
+- 🧱 **9 services behind one gateway** — each service owns its own MongoDB database
 
-- 🛍️ **Product Catalog** - Browse extensive product collections with advanced filtering
-- 🔍 **Smart Search** - Find products quickly with intelligent search functionality
-- 🛒 **Shopping Cart** - Add, remove, and manage items in your cart
-- 💳 **Secure Checkout** - Safe and secure payment processing
-- 👤 **User Authentication** - Sign up, login, and manage user profiles
-- 📱 **Responsive Design** - Seamless experience across all devices
-- ⭐ **Product Reviews** - Read and write product reviews and ratings
-- 💝 **Wishlist** - Save favorite items for later
-- 📦 **Order Management** - Track your orders and delivery status
-- 🎯 **Personalized Recommendations** - AI-powered product suggestions
+## Architecture
 
-## 🚀 Tech Stack
+```
+                      ┌──────────────────────────────┐
+   Browser ──────────▶│  API Gateway  :5000          │  resolves identity once,
+   Next.js :3000      │  (cors, cookie → x-user-id)  │  injects x-user-id / x-user-role
+                      └──────────────┬───────────────┘
+             ┌───────────┬───────────┼───────────┬───────────┬───────────┬───────────┐
+             ▼           ▼           ▼           ▼           ▼           ▼           ▼
+        auth :5001  product :5003 cart :5004 order :5005 payment :5006 inventory  notification
+             │           │           │       └────┬──────┘   └────┬─────┘  :5007      :5008
+             │           │           │            │               │                  │
+             │           ▼           ▼            ▼               ▼                  │
+             │      product DB   cart DB      order DB       payment DB              │
+             │           ▲                                                       order DB
+             │           │  fire-and-forget verification                           │
+             │      ┌────┴──────────────┐                                         ▼
+             └─────▶│  NexaGuard agent  │◀── inventory service ── reservation   notification
+                    │      :5009        │        (reserve/confirm/release)        DB
+                    │   agent DB        │
+                    └───────────────────┘
+```
 
-| Frontend | Backend | Database | Tools |
-|----------|---------|----------|-------|
-| TypeScript | Node.js | MongoDB | Git |
-| React/Next.js | Express | Redis | Docker |
-| Redux Toolkit | JWT Auth | PostgreSQL | GitHub |
+| Service        | Port | Owns                                        | Talks to                                  |
+| -------------- | ---- | ------------------------------------------- | ----------------------------------------- |
+| gateway        | 5000 | identity resolution + routing               | auth (token verify), all services         |
+| auth           | 5001 | users, refresh tokens, bcrypt + JWT         | —                                         |
+| product        | 5003 | catalogue, categories, search               | agent (verify trigger)                    |
+| cart           | 5004 | per-user cart                               | product (price/name enrichment)           |
+| order          | 5005 | orders, fulfilment pipeline                 | inventory, payment, notification, auth    |
+| payment        | 5006 | Razorpay payments, signature verification  | order (paid → confirm inventory)          |
+| inventory      | 5007 | stock, reservations (reserve/confirm/release) | product, order                          |
+| notification   | 5008 | per-user notifications (email/sms/push log) | order                                     |
+| **agent**      | 5009 | NexaGuard verification reports              | product, inventory                        |
 
-## 📋 Prerequisites
+Every service is an independent TypeScript + Express 5 + Mongoose app with its own
+`.env`, `Dockerfile` and MongoDB database.
 
-Before you begin, ensure you have the following installed:
-- **Node.js** (v16.0.0 or higher)
-- **npm** or **yarn** package manager
-- **Git** for version control
-- **MongoDB** or **PostgreSQL** (depending on configuration)
+### How the services stay connected
 
-## 🔧 Installation
+- **Identity at the edge** — the gateway reads the `accessToken` cookie, asks auth to verify
+  it (with a small cache), and forwards `x-user-id` / `x-user-role` headers. No service talks
+  to auth directly.
+- **Cart enrichment** — cart asks the product service for live price/name/image before saving.
+- **Order → inventory → payment loop** — creating an order reserves stock, a verified Razorpay
+  payment marks the order *paid* and confirms the reservation, cancelling releases it.
+- **Product → agent** — creating or updating a product fires a *fire-and-forget* `POST` to
+  NexaGuard, which grades the listing against live inventory and upserts the report the
+  storefront renders.
 
-### 1. Clone the Repository
+## 🚀 Getting started
+
+### Prerequisites
+
+- Node.js 20.9+ (Node 22 recommended)
+- MongoDB (local or Atlas) — each service uses its own database
+- optional: Docker + Docker Compose, Redis, Razorpay test keys
+
+### 1. Environment
+
+Every service ships a `.env.example` — copy each to `.env` and fill in values:
 
 ```bash
-git clone https://github.com/gauravgautam2003/Nexa_Cart.git
-cd Nexa_Cart
+cd backend
+for f in gateway services/*/; do cp "$f/.env.example" "$f/.env"; done   # then edit values
+cd ../frontend && cp .env.example .env.local
 ```
 
-### 2. Install Dependencies
+Key values:
+
+| Variable                     | Where             | Notes                                     |
+| ---------------------------- | ----------------- | ----------------------------------------- |
+| `MONGO_URI`                  | every service     | use a distinct database per service       |
+| `JWT_SECRET`                 | auth              | must match across environments            |
+| `RAZORPAY_KEY_ID/SECRET`     | payment           | optional — COD works without them         |
+| `NEXT_PUBLIC_API_URL`        | frontend          | gateway URL, default `http://localhost:5000` |
+
+### 2. Install & seed demo data
 
 ```bash
-# Using npm
-npm install
+# backend: install every service
+for d in backend/gateway backend/services/*/; do (cd "$d" && npm install); done
 
-# Or using yarn
-yarn install
+# seed 24 demo products (product service DB) and an admin account (auth DB)
+(cd backend/services/product && npm run seed)
+(cd backend/services/auth && npm run seed:admin)
 ```
 
-### 3. Environment Configuration
+Seeded admin: **admin@nexacart.dev / Admin@123** (override with `SEED_ADMIN_*` in
+`backend/services/auth/.env`).
 
-Create a `.env` file in the root directory:
-
-```env
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# Database
-DATABASE_URL=mongodb://localhost:27017/nexa_cart
-# OR
-DATABASE_URL=postgresql://user:password@localhost:5432/nexa_cart
-
-# Authentication
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRE=7d
-
-# API Keys
-STRIPE_API_KEY=your_stripe_key
-STRIPE_SECRET_KEY=your_stripe_secret
-
-# Email Service
-EMAIL_SERVICE=gmail
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password
-
-# Frontend URL
-FRONTEND_URL=http://localhost:3000
-```
-
-### 4. Run the Application
+### 3. Run in development
 
 ```bash
-# Development Mode
-npm run dev
+# terminal 1 — all services (each with tsx watch)
+npm run dev:all        # from backend/: runs gateway + 8 services
 
-# Production Build
-npm run build
-npm start
+# terminal 2 — storefront
+cd frontend && npm run dev
 ```
 
-## 📚 Project Structure
+Open **http://localhost:3000**. The gateway is on **http://localhost:5000/health**.
 
+### 4. Run with Docker
+
+```bash
+cd backend
+docker compose up --build
 ```
+
+Compose starts MongoDB, Redis and all nine services with Docker-DNS service URLs
+(`http://product-service:5003`, …). Run the frontend separately with `npm run dev`.
+
+## 🖥️ Frontend
+
+Next.js 16 (App Router, Turbopack) + Tailwind v4 + Redux Toolkit + react-hook-form/zod.
+
+| Route                   | What it does                                                        |
+| ----------------------- | ------------------------------------------------------------------- |
+| `/`                     | hero, category tiles, today's deals, top-rated grid                 |
+| `/products`             | filters (category/price), sort, search, pagination                  |
+| `/products/[id]`        | gallery, buy box, wishlist, **NexaGuard verification report**       |
+| `/cart`                 | quantities, remove, free-shipping progress                          |
+| `/checkout`             | validated address form, COD or Razorpay checkout modal              |
+| `/orders`, `/orders/[id]` | status stepper, cancel, success banners                           |
+| `/wishlist`             | saved items (persisted in localStorage)                             |
+| `/login`, `/register`   | zod-validated auth forms                                            |
+| `/admin`                | KPIs, product CRUD, one-click agent re-check, order fulfilment      |
+
+State lives in Redux (auth, cart, wishlist); the axios client silently refreshes expired
+access tokens by rotating the refresh cookie and replaying the request.
+
+## 🔌 API (through the gateway)
+
+```text
+POST   /api/auth/register | login | refresh | logout      GET /api/auth/verify
+GET    /api/products?search&category&minPrice&maxPrice&sort&page&limit
+GET    /api/products/categories        GET/POST/PATCH/DELETE /api/products/:id
+GET    /api/cart                       POST/PATCH/DELETE /api/cart/items[/:productId]   DELETE /api/cart/clear
+POST   /api/orders                     GET /api/orders | /api/orders/:id
+PATCH  /api/orders/:id/status|cancel
+POST   /api/payments/create-order      POST /api/payments/verify     GET /api/payments/config
+GET    /api/inventory/product/:productId      POST /api/inventory/product/:productId/reserve|release|confirm
+GET    /api/notifications/user/:userId        PATCH /api/notifications/user/:userId/... 
+POST   /api/agent/products/:id/verify   (internal, fired by product service)
+GET    /api/agent/products/:id/report   (storefront badge)
+GET    /api/agent/reports               (admin dashboard)
+```
+
+## 🤖 The NexaGuard agent
+
+The product service triggers `POST /products/:id/verify` on every create/update (never
+waiting on it). The agent:
+
+1. pulls the live listing from the **product service** and stock from the **inventory service**,
+2. runs 10 deterministic checks (title, description, price sanity, real discount, imagery,
+   category, SKU format, stock, brand, warehouse sync),
+3. scores 0–100 → verdict `verified` (≥85), `needs_review` (≥60) or `rejected`,
+4. upserts the report, which the product page renders as a score ring, check grid, issues and
+   improvement suggestions.
+
+No LLM key is required — the engine is deterministic and offline-friendly.
+
+## 🔐 Security notes
+
+- bcrypt password hashing; JWT access tokens (15 min) + rotating opaque refresh tokens
+- auth cookies are `httpOnly` + `sameSite=strict`; nothing sensitive in localStorage
+- identity is resolved once at the gateway and forwarded as headers — services never parse JWTs
+- Razorpay HMAC-SHA256 signature verification happens server-side before an order is confirmed
+- CORS is restricted to the configured frontend origin
+
+## 📂 Project structure
+
+```text
 NexaCart/
-│
-├── frontend/
-│   ├── public/
-│   │   ├── images/
-│   │   └── icons/
-│   │
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── (auth)/
-│   │   │   │   ├── login/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── register/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   └── forgot-password/
-│   │   │   │       └── page.tsx
-│   │   │   │
-│   │   │   ├── (shop)/
-│   │   │   │   ├── products/
-│   │   │   │   │   ├── page.tsx
-│   │   │   │   │   └── [id]/
-│   │   │   │   │       └── page.tsx
-│   │   │   │   ├── cart/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── checkout/
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── orders/
-│   │   │   │   │   ├── page.tsx
-│   │   │   │   │   └── [id]/
-│   │   │   │   │       └── page.tsx
-│   │   │   │   └── wishlist/
-│   │   │   │       └── page.tsx
-│   │   │   │
-│   │   │   ├── profile/
-│   │   │   │   └── page.tsx
-│   │   │   │
-│   │   │   ├── admin/
-│   │   │   │   ├── dashboard/
-│   │   │   │   ├── products/
-│   │   │   │   ├── orders/
-│   │   │   │   ├── inventory/
-│   │   │   │   └── users/
-│   │   │   │
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
-│   │   │
-│   │   ├── components/
-│   │   │   ├── ui/
-│   │   │   ├── layout/
-│   │   │   ├── product/
-│   │   │   ├── cart/
-│   │   │   ├── checkout/
-│   │   │   ├── order/
-│   │   │   └── admin/
-│   │   │
-│   │   ├── features/
-│   │   │   ├── auth/
-│   │   │   ├── products/
-│   │   │   ├── cart/
-│   │   │   ├── wishlist/
-│   │   │   ├── checkout/
-│   │   │   └── orders/
-│   │   │
-│   │   ├── redux/
-│   │   │   ├── store.ts
-│   │   │   └── slices/
-│   │   │       ├── auth.slice.ts
-│   │   │       ├── cart.slice.ts
-│   │   │       ├── product.slice.ts
-│   │   │       └── order.slice.ts
-│   │   │
-│   │   ├── hooks/
-│   │   ├── lib/
-│   │   │   ├── axios.ts
-│   │   │   └── utils.ts
-│   │   ├── types/
-│   │   └── constants/
-│   │
-│   ├── .env.local
-│   ├── next.config.ts
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── Dockerfile
-│
-│
-├── backend/
-│   │
-│   ├── api-gateway/
-│   │   ├── src/
-│   │   │   ├── config/
-│   │   │   ├── middleware/
-│   │   │   ├── routes/
-│   │   │   ├── proxy/
-│   │   │   ├── app.ts
-│   │   │   └── server.ts
-│   │   ├── .env
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   └── Dockerfile
-│   │
-│   ├── services/
-│   │   │
-│   │   ├── auth-service/
-│   │   │   ├── src/
-│   │   │   │   ├── config/
-│   │   │   │   │   ├── db.ts
-│   │   │   │   │   └── token.ts
-│   │   │   │   ├── models/
-│   │   │   │   │   ├── user.model.ts
-│   │   │   │   │   └── refreshToken.model.ts
-│   │   │   │   ├── types/
-│   │   │   │   │   ├── auth.types.ts
-│   │   │   │   │   └── express.d.ts
-│   │   │   │   ├── services/
-│   │   │   │   │   ├── auth.service.ts
-│   │   │   │   │   └── profile.service.ts
-│   │   │   │   ├── controllers/
-│   │   │   │   │   ├── auth.controller.ts
-│   │   │   │   │   └── profile.controller.ts
-│   │   │   │   ├── routes/
-│   │   │   │   │   ├── auth.routes.ts
-│   │   │   │   │   └── profile.routes.ts
-│   │   │   │   ├── middleware/
-│   │   │   │   │   ├── auth.middleware.ts
-│   │   │   │   │   └── error.middleware.ts
-│   │   │   │   ├── app.ts
-│   │   │   │   └── server.ts
-│   │   │   ├── .env
-│   │   │   ├── package.json
-│   │   │   ├── tsconfig.json
-│   │   │   └── Dockerfile
-│   │   │
-│   │   ├── product-service/
-│   │   │   ├── src/
-│   │   │   │   ├── config/
-│   │   │   │   │   └── db.ts
-│   │   │   │   ├── models/
-│   │   │   │   │   └── product.model.ts
-│   │   │   │   ├── types/
-│   │   │   │   │   └── product.types.ts
-│   │   │   │   ├── services/
-│   │   │   │   │   └── product.service.ts
-│   │   │   │   ├── controllers/
-│   │   │   │   │   └── product.controller.ts
-│   │   │   │   ├── routes/
-│   │   │   │   │   └── product.routes.ts
-│   │   │   │   ├── middleware/
-│   │   │   │   │   └── error.middleware.ts
-│   │   │   │   ├── app.ts
-│   │   │   │   └── server.ts
-│   │   │   ├── .env
-│   │   │   ├── package.json
-│   │   │   ├── tsconfig.json
-│   │   │   └── Dockerfile
-│   │   │
-│   │   ├── cart-service/
-│   │   │   ├── src/
-│   │   │   │   ├── config/
-│   │   │   │   │   └── db.ts
-│   │   │   │   ├── models/
-│   │   │   │   │   └── cart.model.ts
-│   │   │   │   ├── types/
-│   │   │   │   │   └── cart.type.ts
-│   │   │   │   ├── services/
-│   │   │   │   │   └── cart.service.ts
-│   │   │   │   ├── controllers/
-│   │   │   │   │   └── cart.controller.ts
-│   │   │   │   ├── routes/
-│   │   │   │   │   └── cart.routes.ts
-│   │   │   │   ├── middleware/
-│   │   │   │   │   └── error.middleware.ts
-│   │   │   │   ├── app.ts
-│   │   │   │   └── server.ts
-│   │   │   ├── .env
-│   │   │   ├── package.json
-│   │   │   ├── tsconfig.json
-│   │   │   └── Dockerfile
-│   │   │
-│   │   ├── inventory-service/
-│   │   │   └── ...
-│   │   │
-│   │   ├── order-service/
-│   │   │   └── ...
-│   │   │
-│   │   ├── payment-service/
-│   │   │   └── ...
-│   │   │
-│   │   └── notification-service/
-│   │       └── ...
-│   │
-│   ├── shared/
-│   │   ├── types/
-│   │   ├── constants/
-│   │   └── utils/
-│   │
-│   ├── docker-compose.yml
-│   └── .env
-│
-│
-├── docs/
-│   ├── architecture/
-│   │   ├── system-design.md
-│   │   ├── api-flow.md
-│   │   └── database-design.md
-│   ├── diagrams/
-│   │   ├── architecture.png
-│   │   └── request-flow.png
-│   └── api/
-│       └── API.md
-│
-├── .github/
-│   └── workflows/
-│       ├── frontend.yml
-│       └── backend.yml
-│
-├── .gitignore
-├── docker-compose.yml
-├── README.md
-└── LICENSE
+├── frontend/                 # Next.js 16 storefront + admin console
+│   └── src/
+│       ├── app/              # routes: (auth), (shop), admin, home
+│       ├── components/       # layout (Navbar/Footer), product, ui kit
+│       ├── features/         # typed API modules per domain (auth, cart, orders, agent…)
+│       ├── redux/            # store + auth/cart/wishlist slices
+│       ├── services/api.ts   # axios client with silent refresh
+│       └── lib/              # constants + formatting helpers
+└── backend/
+    ├── gateway/              # :5000 identity + reverse proxy
+    ├── services/
+    │   ├── auth/  product/  cart/  order/  payment/  inventory/  notification/  agent/
+    │   └── (each: src/{config,models,services,controllers,routes}, Dockerfile, .env)
+    └── docker-compose.yml    # mongo, redis, all 9 services
 ```
 
-## 🔐 Security Features
-
-- ✅ JWT-based authentication
-- ✅ Password hashing with bcrypt
-- ✅ CORS protection
-- ✅ Rate limiting
-- ✅ Input validation and sanitization
-- ✅ SQL injection prevention
-- ✅ HTTPS ready
-
-## 📖 API Documentation
-
-### Authentication Endpoints
-
-```
-POST /api/auth/register      - Register new user
-POST /api/auth/login         - User login
-POST /api/auth/logout        - User logout
-POST /api/auth/refresh-token - Refresh JWT token
-```
-
-### Product Endpoints
-
-```
-GET /api/products            - Get all products
-GET /api/products/:id        - Get product details
-POST /api/products/search    - Search products
-GET /api/products/category/:cat - Get products by category
-```
-
-### Cart Endpoints
-
-```
-GET /api/cart                - Get user's cart
-POST /api/cart/add           - Add item to cart
-PUT /api/cart/update         - Update cart item
-DELETE /api/cart/remove      - Remove from cart
-```
-
-### Order Endpoints
-
-```
-POST /api/orders             - Create order
-GET /api/orders              - Get user's orders
-GET /api/orders/:id          - Get order details
-PUT /api/orders/:id/status   - Update order status
-```
-
-## 🧪 Testing
+## 🧪 Verification
 
 ```bash
-# Run all tests
-npm test
+# backend typechecks (every service has its own tsconfig)
+for d in backend/gateway backend/services/*/; do (cd "$d" && ./node_modules/.bin/tsc --noEmit); done
 
-# Run tests with coverage
-npm run test:coverage
-
-# Run specific test file
-npm test -- src/components/Product.test.tsx
+# storefront production build
+cd frontend && npm run build
 ```
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how you can help:
-
-1. **Fork** the repository
-2. **Create** a new branch (`git checkout -b feature/amazing-feature`)
-3. **Make** your changes and commit them (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Contribution Guidelines
-
-- Follow the existing code style
-- Write meaningful commit messages
-- Add tests for new features
-- Update documentation as needed
-- Keep commits atomic and focused
+1. Fork and create a feature branch: `git checkout -b feature/amazing-feature`
+2. Make your changes and commit with a clear message
+3. Run the typechecks + `npm run build` above
+4. Open a pull request
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🐛 Bug Reports
-
-Found a bug? Please [create an issue](https://github.com/gauravgautam2003/Nexa_Cart/issues) with:
-- Description of the bug
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Screenshots/logs (if applicable)
-
-## 💡 Feature Requests
-
-Have an idea? [Open a discussion](https://github.com/gauravgautam2003/Nexa_Cart/discussions) or create an issue with the `feature-request` label.
-
-## 📞 Support
-
-For questions and support:
-- 📧 Email: gauravgautam2003@gmail.com
-- 💬 GitHub Issues: [Create an issue](https://github.com/gauravgautam2003/Nexa_Cart/issues)
-- 📱 GitHub Discussions: [Start a discussion](https://github.com/gauravgautam2003/Nexa_Cart/discussions)
+MIT — see [LICENSE](LICENSE).
 
 ## 🙏 Acknowledgments
 
-- Inspired by Flipkart, Amazon, and Meesho
+- Inspired by Amazon, Flipkart and Meesho
 - Built with ❤️ by [Gaurav Gautam](https://github.com/gauravgautam2003)
-- Thanks to all contributors and supporters
-
-## 📊 Project Status
-
-🚀 **Active Development** - The project is actively being developed with regular updates and new features.
-
----
-
-**Made with ❤️ by Gaurav Gautam**
-
-⭐ If you find this project helpful, please consider giving it a star!

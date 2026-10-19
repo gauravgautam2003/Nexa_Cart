@@ -9,16 +9,27 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 const app = express();
 
 const allowedOrigins = [
-    process.env.FRONTEND_URL || "http://localhost:3000",
+    ...(process.env.FRONTEND_URL ?? "http://localhost:3000")
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean),
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ];
+
+// Dev machines run the storefront on whichever port is free (3001, 4000…).
+const isLoopback = (origin: string): boolean =>
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
 app.use(
     cors({
         origin: (origin, callback) => {
             // Allow non-browser clients (curl, server-to-server) and known frontends.
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (
+                !origin ||
+                allowedOrigins.includes(origin) ||
+                (process.env.NODE_ENV !== "production" && isLoopback(origin))
+            ) {
                 callback(null, origin ?? true);
                 return;
             }
