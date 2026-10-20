@@ -33,8 +33,10 @@ function RegisterForm() {
 
     const { user, status, error, hydrated } = useAppSelector((state) => state.auth);
     const [redirecting, setRedirecting] = useState(false);
+    const [role, setRole] = useState<"user" | "admin">("user");
 
-    const next = searchParams.get("next") ?? "/";
+    // Admin accounts open the console, shoppers land on the storefront.
+    const next = searchParams.get("next") ?? (role === "admin" ? "/admin" : "/");
 
     const {
         register,
@@ -57,7 +59,14 @@ function RegisterForm() {
     }, [user, hydrated, router, next]);
 
     const onSubmit = (values: FormValues) => {
-        void dispatch(registerThunk({ name: values.name, email: values.email, password: values.password }));
+        void dispatch(
+            registerThunk({
+                name: values.name,
+                email: values.email,
+                password: values.password,
+                role,
+            }),
+        );
     };
 
     const busy = status === "loading" || redirecting;
@@ -71,12 +80,43 @@ function RegisterForm() {
                     </span>
                     <div>
                         <h1 className="text-xl font-extrabold text-gray-900">
-                            Create your account
+                            {role === "admin" ? "Create an admin account" : "Create your account"}
                         </h1>
                         <p className="text-xs text-gray-500">
-                            Verified listings, tracked orders, one-click checkout.
+                            {role === "admin"
+                                ? "Opens the admin console to add and manage products."
+                                : "Verified listings, tracked orders, one-click checkout."}
                         </p>
                     </div>
+                </div>
+
+                {/* Account type */}
+                <div
+                    className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 p-1"
+                    role="tablist"
+                    aria-label="Account type"
+                >
+                    {(
+                        [
+                            { value: "user", label: "Shop account" },
+                            { value: "admin", label: "Admin account" },
+                        ] as const
+                    ).map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            role="tab"
+                            aria-selected={role === option.value}
+                            onClick={() => setRole(option.value)}
+                            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                                role === option.value
+                                    ? "bg-white text-brand shadow-sm"
+                                    : "text-gray-500 hover:text-gray-700"
+                            }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
@@ -159,6 +199,12 @@ function RegisterForm() {
                         Sign in
                     </Link>
                 </p>
+
+                {role === "admin" && (
+                    <p className="mt-3 text-center text-[11px] text-amber-600">
+                        ⚠️ This creates an account that can add, edit and delete products.
+                    </p>
+                )}
 
                 <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
                     <ShieldCheck size={12} /> Passwords are hashed with bcrypt before storage.

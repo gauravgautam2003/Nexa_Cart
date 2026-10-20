@@ -1,6 +1,7 @@
 import Inventory from "../models/inventory.model.js";
 import type { IInventory } from "../models/inventory.model.js";
 import type { CreateInventoryRequest, UpdateInventoryRequest, AdjustStockRequest, InventoryResponse } from "../types/inventory.types.js";
+import { ensureInventory } from "./inventory.provision.js";
 
 export const createInventoryResponse = (inventory: IInventory): InventoryResponse => ({
     id: inventory._id.toString(),
@@ -40,7 +41,9 @@ export const createInventory = async (data: CreateInventoryRequest): Promise<Inv
 
 }
 export const getInventoryByProductId = async (productId: string): Promise<InventoryResponse> => {
-    const inventory = await Inventory.findOne({ productId });
+    // Products created after seeding arrive here before any warehouse row
+    // exists, so the row is provisioned from the catalogue on first sight.
+    const inventory = await ensureInventory(productId);
 
     if (!inventory) {
         throw new Error("Inventory not found");

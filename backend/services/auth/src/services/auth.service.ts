@@ -113,6 +113,9 @@ export const logoutUser = async (req: Request, res: Response): Promise<void> => 
 
 export const registerUser = async (data: RegisterRequest, res: Response): Promise<AuthRequest> => {
     const { name, email, password } = data;
+    // "admin" sign-ups are allowed deliberately for this demo console; the
+    // field is whitelisted so no other role value can be injected.
+    const role = data.role === "admin" ? "admin" : "user";
 
     const existUser = await User.findOne({ email });
 
@@ -125,7 +128,8 @@ export const registerUser = async (data: RegisterRequest, res: Response): Promis
     const user = await User.create({
         name,
         email,
-        password: hashPassword
+        password: hashPassword,
+        role
     })
 
     const accessToken = await createTokenPair(user._id.toString(), user.email, res, user.role);

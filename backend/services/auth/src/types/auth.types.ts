@@ -3,7 +3,9 @@ import type { Request } from "express";
 export interface RegisterRequest {
     name: string,
     email: string,
-    password: string
+    password: string,
+    /** Optional account type — "admin" opens the admin console after sign-up. */
+    role?: "user" | "admin"
 }
 
 export interface LoginRequest {

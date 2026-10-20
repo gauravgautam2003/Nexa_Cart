@@ -94,6 +94,7 @@ services:
       - ./services/product/.env
     environment:
       AGENT_SERVICE_URL: http://agent-service:5009
+      INVENTORY_SERVICE_URL: http://inventory-service:5007
     depends_on:
       - mongodb
 
@@ -174,8 +175,11 @@ services:
       - "5007:5007"
     env_file:
       - ./services/inventory/.env
+    environment:
+      PRODUCT_SERVICE_URL: http://product-service:5003
     depends_on:
       - mongodb
+      - product-service
 
 
   # =========================

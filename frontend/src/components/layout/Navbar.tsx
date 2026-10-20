@@ -147,6 +147,7 @@ export default function Navbar() {
     );
 
     return (
+        <>
         <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
             {/* Main bar */}
             <div className="page-shell flex h-16 items-center gap-3 sm:gap-4">
@@ -372,9 +373,13 @@ export default function Navbar() {
                 </div>
             </nav>
 
-            {/* Mobile drawer */}
+            {/* Mobile drawer
+                Rendered OUTSIDE the header: `backdrop-blur` makes the header a
+                containing block for fixed children, which used to shrink the
+                drawer to the header's own height on mobile. */}
+            </header>
             {mobileOpen && (
-                <div className="fixed inset-0 z-50 md:hidden">
+                <div className="fixed inset-0 h-[100dvh] z-50 md:hidden">
                     <button
                         type="button"
                         aria-label="Close menu"
@@ -461,6 +466,6 @@ export default function Navbar() {
                     </aside>
                 </div>
             )}
-        </header>
+        </>
     );
 }

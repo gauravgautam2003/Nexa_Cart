@@ -1,6 +1,7 @@
 import Product from "../models/product.model.js";
 import type { IProduct } from "../models/product.model.js";
 import { triggerVerification } from "./agent.client.js";
+import { syncInventory } from "./inventory.client.js";
 import type {
     CreateProductRequest,
     UpdateProductRequest,
@@ -71,6 +72,9 @@ export const createProduct = async (data: CreateProductRequest, createdBy: strin
     }
 
     const product = await Product.create({ ...data, slug, createdBy });
+
+    // The warehouse needs a stock row before the first order can reserve it.
+    syncInventory(product._id.toString(), product.sku, product.stock);
 
     // The NexaGuard agent re-checks the listing automatically.
     triggerVerification(product._id.toString());
@@ -147,6 +151,13 @@ export const getProductById = async (productId: string): Promise<ProductResponse
 
 /** Updates product fields and regenerates the slug when the name changes. */
 export const updateProduct = async (productId: string, data: UpdateProductRequest): Promise<ProductResponse> => {
+    const current = await Product.findById(productId);
+
+    if (!current) {
+        throw new Error("Product not found");
+    }
+
+    const stockChanged = typeof data.stock === "number" && data.stock !== current.stock;
     const updateData: Record<string, unknown> = { ...data };
 
     if (data.name) {
@@ -161,6 +172,12 @@ export const updateProduct = async (productId: string, data: UpdateProductReques
 
     if (!product) {
         throw new Error("Product not found");
+    }
+
+    // Only a real stock edit moves warehouse numbers — a price tweak must not
+    // resurrect units that orders already sold.
+    if (stockChanged) {
+        syncInventory(product._id.toString(), product.sku, product.stock);
     }
 
     // Product changed -> the agent re-verifies the listing.

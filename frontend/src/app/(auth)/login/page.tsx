@@ -27,7 +27,9 @@ function LoginForm() {
     const { user, status, error, hydrated } = useAppSelector((state) => state.auth);
     const [redirecting, setRedirecting] = useState(false);
 
-    const next = searchParams.get("next") ?? "/";
+    const nextParam = searchParams.get("next");
+    // Admins who arrive at the plain sign-in page go straight to the console.
+    const next = nextParam ?? (user?.role === "admin" ? "/admin" : "/");
 
     const {
         register,
@@ -115,11 +117,26 @@ function LoginForm() {
                 <p className="mt-5 text-center text-sm text-gray-500">
                     New to NexaCart?{" "}
                     <Link
-                        href={`/register?next=${encodeURIComponent(next)}`}
+                        href={
+                            nextParam
+                                ? `/register?next=${encodeURIComponent(nextParam)}`
+                                : "/register"
+                        }
                         className="font-semibold text-brand hover:underline"
                     >
                         Create an account
                     </Link>
+                </p>
+
+                <p className="mt-3 text-center text-[11px] text-gray-500">
+                    Admin?{" "}
+                    <Link
+                        href="/register"
+                        className="font-semibold text-brand hover:underline"
+                    >
+                        Create an admin account
+                    </Link>{" "}
+                    or sign in with your admin credentials.
                 </p>
 
                 <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">

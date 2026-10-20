@@ -6,6 +6,7 @@ import {
     update,
     add,
     remove,
+    sync,
 } from "../controllers/inventory.controller.js";
 import {
     reserve,
@@ -25,6 +26,13 @@ router.post("/", create);
 router.post("/product/:productId/reserve", reserve);
 router.post("/product/:productId/release", release);
 router.post("/product/:productId/confirm", confirm);
+
+/*
+ * Catalogue sync: the product service pushes its stock number here whenever
+ * a listing is created or its stock is edited, so the warehouse row always
+ * starts from the same number the storefront advertises.
+ */
+router.post("/product/:productId/sync", sync);
 
 // Get inventory by product ID
 router.get("/product/:productId", getByProductId);

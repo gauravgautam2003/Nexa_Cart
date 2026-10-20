@@ -22,4 +22,6 @@ export interface RegisterInput {
     name: string;
     email: string;
     password: string;
+    /** "admin" creates an account that can manage the catalogue. */
+    role?: "user" | "admin";
 }

@@ -3,6 +3,7 @@ import Inventory from "../models/inventory.model.js";
 import type { IInventory } from "../models/inventory.model.js";
 import type { InventoryResponse } from "../types/inventory.types.js";
 import { createInventoryResponse } from "./inventory.service.js";
+import { ensureInventory } from "./inventory.provision.js";
 
 /**
  * Reserves stock for a pending order: available -> reserved.
@@ -16,6 +17,9 @@ export const reserveStock = async (productId: string, quantity: number): Promise
     if (!Number.isFinite(quantity) || quantity <= 0) {
         throw new Error("Quantity must be greater than zero");
     }
+
+    // A listing can be created and ordered before any warehouse row exists.
+    await ensureInventory(productId);
 
     const inventory = await Inventory.findOneAndUpdate(
         { productId, availableStock: { $gte: quantity } },

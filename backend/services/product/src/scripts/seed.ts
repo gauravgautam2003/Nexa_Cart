@@ -336,6 +336,45 @@ const slugify = (name: string): string =>
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
 
+/**
+ * Pushes every seeded stock number to the inventory service so the warehouse
+ * starts in agreement with the catalogue (otherwise the NexaGuard inventory
+ * sync check reports drift on all 24 demo listings).
+ */
+const syncWarehouse = async (): Promise<void> => {
+    const baseUrl = process.env.INVENTORY_SERVICE_URL ?? "http://localhost:5007";
+    const seeded = await Product.find({ sku: { $in: PRODUCTS.map((product) => product.sku) } })
+        .select("_id sku stock")
+        .lean();
+
+    let synced = 0;
+
+    for (const product of seeded) {
+        try {
+            const response = await fetch(`${baseUrl}/product/${product._id.toString()}/sync`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sku: product.sku, stock: product.stock }),
+            });
+
+            if (!response.ok) {
+                console.warn(`Warehouse sync skipped for ${product.sku}: HTTP ${response.status}`);
+                continue;
+            }
+
+            synced += 1;
+        } catch {
+            console.warn(
+                "Inventory service unreachable — warehouse stock was not synced. " +
+                    "Start the services (npm run dev:all) and re-run npm run seed.",
+            );
+            return;
+        }
+    }
+
+    console.log(`Warehouse stock synced for ${synced}/${seeded.length} products.`);
+};
+
 const seed = async (): Promise<void> => {
     const uri = process.env.MONGO_URI;
 
@@ -375,6 +414,8 @@ const seed = async (): Promise<void> => {
     }
 
     console.log(`Products seeded: ${created} created, ${updated} updated.`);
+
+    await syncWarehouse();
 
     await mongoose.disconnect();
 };
