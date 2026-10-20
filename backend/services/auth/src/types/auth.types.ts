@@ -5,7 +5,9 @@ export interface RegisterRequest {
     email: string,
     password: string,
     /** Optional account type — "admin" opens the admin console after sign-up. */
-    role?: "user" | "admin"
+    role?: "user" | "admin",
+    /** Required with role "admin": the invitation code checked server-side. */
+    inviteCode?: string
 }
 
 export interface LoginRequest {

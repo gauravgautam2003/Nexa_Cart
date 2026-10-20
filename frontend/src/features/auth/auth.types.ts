@@ -24,4 +24,6 @@ export interface RegisterInput {
     password: string;
     /** "admin" creates an account that can manage the catalogue. */
     role?: "user" | "admin";
+    /** Required with role "admin" — the server checks it against ADMIN_INVITE_CODE. */
+    inviteCode?: string;
 }

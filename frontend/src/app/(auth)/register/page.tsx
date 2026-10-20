@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { ShieldCheck, Sparkles } from "lucide-react";
+import { KeyRound, ShieldCheck, Sparkles, User } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +34,8 @@ function RegisterForm() {
     const { user, status, error, hydrated } = useAppSelector((state) => state.auth);
     const [redirecting, setRedirecting] = useState(false);
     const [role, setRole] = useState<"user" | "admin">("user");
+    const [inviteCode, setInviteCode] = useState("");
+    const [inviteError, setInviteError] = useState<string | null>(null);
 
     // Admin accounts open the console, shoppers land on the storefront.
     const next = searchParams.get("next") ?? (role === "admin" ? "/admin" : "/");
@@ -59,12 +61,19 @@ function RegisterForm() {
     }, [user, hydrated, router, next]);
 
     const onSubmit = (values: FormValues) => {
+        if (role === "admin" && !inviteCode.trim()) {
+            setInviteError("Enter the admin invite code");
+            return;
+        }
+
+        setInviteError(null);
         void dispatch(
             registerThunk({
                 name: values.name,
                 email: values.email,
                 password: values.password,
                 role,
+                ...(role === "admin" ? { inviteCode: inviteCode.trim() } : {}),
             }),
         );
     };
@@ -98,8 +107,8 @@ function RegisterForm() {
                 >
                     {(
                         [
-                            { value: "user", label: "Shop account" },
-                            { value: "admin", label: "Admin account" },
+                            { value: "user", label: "Shop account", icon: User },
+                            { value: "admin", label: "Admin account", icon: ShieldCheck },
                         ] as const
                     ).map((option) => (
                         <button
@@ -107,17 +116,52 @@ function RegisterForm() {
                             type="button"
                             role="tab"
                             aria-selected={role === option.value}
-                            onClick={() => setRole(option.value)}
-                            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                            onClick={() => {
+                                setRole(option.value);
+                                setInviteError(null);
+                            }}
+                            className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
                                 role === option.value
                                     ? "bg-white text-brand shadow-sm"
                                     : "text-gray-500 hover:text-gray-700"
                             }`}
                         >
+                            <option.icon size={15} aria-hidden="true" />
                             {option.label}
                         </button>
                     ))}
                 </div>
+
+                {/* Admin invite code (Amazon-style invitation gate) */}
+                {role === "admin" && (
+                    <div className="mt-4">
+                        <label
+                            className="label flex items-center gap-1.5"
+                            htmlFor="inviteCode"
+                        >
+                            <KeyRound size={13} className="text-brand" aria-hidden="true" />
+                            Admin invite code
+                        </label>
+                        <input
+                            id="inviteCode"
+                            className={`input ${inviteError ? "input-error" : ""}`}
+                            value={inviteCode}
+                            onChange={(event) => {
+                                setInviteCode(event.target.value);
+                                setInviteError(null);
+                            }}
+                            placeholder="Enter your invitation code"
+                            autoComplete="off"
+                        />
+                        {inviteError ? (
+                            <p className="field-error">{inviteError}</p>
+                        ) : (
+                            <p className="mt-1.5 text-[11px] text-gray-400">
+                                Admin accounts need an invitation code from the NexaCart team.
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
                     <div>

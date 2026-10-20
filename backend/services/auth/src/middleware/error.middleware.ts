@@ -9,8 +9,12 @@ export const errorMiddleware = async (error: unknown, _req: Request, res: Respon
 
     let statusCode = 500;
 
-    if (message === "Email already exists" || message === "User profile already exists") {
+    if (message === "Email already exists" || message === "Email already exist" || message === "User profile already exists") {
         statusCode = 409;
+    } else if (message === "Invalid admin invite code") {
+        statusCode = 403;
+    } else if (message === "Admin sign-up is disabled: ADMIN_INVITE_CODE is not configured") {
+        statusCode = 503;
     } else if (
         message === "Invalid email or password" ||
         message === "Invalid or expired refresh token" ||

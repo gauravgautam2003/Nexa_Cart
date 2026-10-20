@@ -91,6 +91,7 @@ Key values:
 | ---------------------------- | ----------------- | ----------------------------------------- |
 | `MONGO_URI`                  | every service     | use a distinct database per service       |
 | `JWT_SECRET`                 | auth              | must match across environments            |
+| `ADMIN_INVITE_CODE`          | auth              | invite code required to register an admin account |
 | `RAZORPAY_KEY_ID/SECRET`     | payment           | optional — COD works without them         |
 | `NEXT_PUBLIC_API_URL`        | frontend          | gateway URL, default `http://localhost:5000` |
 

@@ -54,6 +54,12 @@ npm run dev:all -- product agent   # only selected services
 (cd services/auth && npm run seed:admin)     # admin@nexacart.dev / Admin@123
 ```
 
+## Admin sign-up (invite code)
+
+Registering with `role: "admin"` requires an invite code, checked against
+`ADMIN_INVITE_CODE` in `services/auth/.env` (see `.env.example`). Shopper
+accounts need no code. The seeded admin above needs no invite code either.
+
 ## Docker Compose
 
 The root `docker-compose.yml` runs the complete backend stack (MongoDB, Redis and

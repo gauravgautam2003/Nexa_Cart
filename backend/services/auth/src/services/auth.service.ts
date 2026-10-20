@@ -117,6 +117,20 @@ export const registerUser = async (data: RegisterRequest, res: Response): Promis
     // field is whitelisted so no other role value can be injected.
     const role = data.role === "admin" ? "admin" : "user";
 
+    if (role === "admin") {
+        // Amazon-style invitation gate: an admin account is only created when
+        // the sign-up carries the configured invite code.
+        const configured = process.env.ADMIN_INVITE_CODE?.trim();
+
+        if (!configured) {
+            throw new Error("Admin sign-up is disabled: ADMIN_INVITE_CODE is not configured");
+        }
+
+        if (!data.inviteCode || data.inviteCode.trim() !== configured) {
+            throw new Error("Invalid admin invite code");
+        }
+    }
+
     const existUser = await User.findOne({ email });
 
     if (existUser) {
